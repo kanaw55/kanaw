@@ -14,7 +14,6 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-123')
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 db_url = os.environ.get('DATABASE_URL', 'sqlite:///' + os.path.join(basedir, 'social.db'))
-# تصحيح رابط قاعدة البيانات ليتوافق مع psycopg3
 if db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql+psycopg://", 1)
 elif db_url.startswith("postgresql://"):
@@ -352,7 +351,6 @@ def notifications():
     requests = FollowRequest.query.filter_by(receiver_id=current_user.id).all()
     return render_template('notifications.html', notifications=notifs, requests=requests)
 
-# --- إنشاء الجداول عند بدء التشغيل ---
 with app.app_context():
     try:
         db.create_all()
