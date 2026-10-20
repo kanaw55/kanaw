@@ -54,11 +54,11 @@ class User(UserMixin, db.Model):
 class Video(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     filename = db.Column(db.String(500), nullable=False)
-    caption = db.Column(db.String(200))
+    caption = db.Column(db.String(200), default="")
     likes = db.Column(db.Integer, default=0)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     user = db.relationship('User', backref='videos')
-    comments = db.relationship('Comment', backref='video', lazy=True)
+    comments = db.relationship('Comment', backref='video', lazy=True, cascade="all, delete-orphan")
 
 class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -115,6 +115,45 @@ def index():
         videos = Video.query.join(User).filter(User.is_private == False).order_by(Video.id.desc()).all()
     return render_template('index.html', videos=videos)
 
+@app.route('/api/upload_direct', methods=['POST'])
+@login_required
+def upload_direct():
+    file = request.files.get('video')
+    if file and file.filename != '':
+        try:
+            upload_result = cloudinary.uploader.upload(file, resource_type="video")
+            video_url = upload_result.get('secure_url')
+            if '/video/upload/' in video_url:
+                video_url = video_url.replace('/video/upload/', '/video/upload/q_auto,f_auto/')
+            new_video = Video(filename=video_url, user=current_user)
+            db.session.add(new_video)
+            db.session.commit()
+            return jsonify({'success': True})
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+    return jsonify({'success': False, 'error': 'No file'}), 400
+
+@app.route('/api/comments/<int:video_id>')
+def get_comments(video_id):
+    comments = Comment.query.filter_by(video_id=video_id).order_by(Comment.timestamp.desc()).all()
+    return jsonify([{'id': c.id, 'content': c.content, 'user': c.user.username, 'time': c.timestamp.strftime('%Y-%m-%d %H:%M')} for c in comments])
+
+@app.route('/comment/<int:video_id>', methods=['POST'])
+@login_required
+def add_comment(video_id):
+    data = request.get_json()
+    content = data.get('content') if data else None
+    if content:
+        try:
+            comment = Comment(content=content, user_id=current_user.id, video_id=video_id)
+            db.session.add(comment)
+            db.session.commit()
+            return jsonify({'success': True})
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+    return jsonify({'success': False, 'error': 'Empty'}), 400
+
+# (باقي المسارات مثل التسجيل، الدخول، البروفايل، اللايك، الرسائل، الإشعارات تبقى كما هي)
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated: return redirect(url_for('index'))
@@ -160,23 +199,6 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for('index'))
-
-@app.route('/api/comments/<int:video_id>')
-def get_comments(video_id):
-    comments = Comment.query.filter_by(video_id=video_id).order_by(Comment.timestamp.desc()).all()
-    return jsonify([{'id': c.id, 'content': c.content, 'user': c.user.username, 'time': c.timestamp.strftime('%Y-%m-%d %H:%M')} for c in comments])
-
-@app.route('/comment/<int:video_id>', methods=['POST'])
-@login_required
-def add_comment(video_id):
-    data = request.get_json()
-    content = data.get('content') if data else None
-    if content:
-        comment = Comment(content=content, user_id=current_user.id, video_id=video_id)
-        db.session.add(comment)
-        db.session.commit()
-        return jsonify({'success': True})
-    return jsonify({'success': False})
 
 @app.route('/settings', methods=['GET', 'POST'])
 @login_required

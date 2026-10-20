@@ -23,6 +23,9 @@
         .comment-input-area { padding: 10px; display: flex; gap: 10px; border-top: 1px solid #333; background: #111; }
         .comment-input-area input { flex: 1; padding: 10px; border-radius: 20px; border: none; background: #333; color: white; }
         .comment-input-area button { background: #fe2c55; color: white; border: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; }
+        
+        /* زر الرفع المباشر */
+        .upload-label { background: #25D366; color: white; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; display: inline-block; }
     </style>
 </head>
 <body>
@@ -35,7 +38,7 @@
         {% if current_user.is_authenticated %}
         <div class="comment-input-area">
             <input type="text" id="commentInput" placeholder="أضف تعليقاً..." onkeypress="if(event.key === 'Enter') postComment()">
-            <button onclick="postComment()">نشر</button>
+            <button onclick="postComment()" id="postBtn">نشر</button>
         </div>
         {% else %}
         <div style="padding:15px;text-align:center;color:#888;">سجل دخولك لتتمكن من التعليق</div>
@@ -45,7 +48,10 @@
     <div class="top-nav">
         {% if current_user.is_authenticated %}
             <div>
-                <a href="/upload" class="btn-login" style="background:#25D366;">رفع +</a>
+                <!-- زر الرفع المباشر -->
+                <label for="directUpload" class="upload-label">رفع +</label>
+                <input type="file" id="directUpload" accept="video/*" style="display: none;" onchange="uploadDirectly(this)">
+                
                 <a href="/inbox" class="icon-btn" style="margin-right: 10px;"><i class="fa-solid fa-envelope"></i></a>
             </div>
             <div style="display:flex; align-items:center;">
@@ -118,35 +124,29 @@
 
     <div class="bottom-nav">
         <a href="/" class="active"><i class="fa-solid fa-house"></i> الرئيسية</a>
-        <a href="{% if current_user.is_authenticated %}/upload{% else %}/login{% endif %}"><i class="fa-solid fa-circle-plus" style="font-size: 24px;"></i></a>
+        <label for="directUpload" style="color:#888; display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; font-size:12px;">
+            <i class="fa-solid fa-circle-plus" style="font-size:24px;"></i>
+        </label>
         <a href="{% if current_user.is_authenticated %}/inbox{% else %}/login{% endif %}"><i class="fa-solid fa-envelope"></i> الرسائل</a>
         <a href="{% if current_user.is_authenticated %}/profile/{{ current_user.username }}{% else %}/login{% endif %}"><i class="fa-solid fa-user"></i> حسابي</a>
     </div>
     
     <script>
-        // متغير لحفظ حالة الصوت (مكتوم أم لا)
         let isMuted = true;
 
-        // مراقبة الفيديوهات أثناء التمرير
         document.addEventListener("DOMContentLoaded", function() {
             const videos = document.querySelectorAll('.video-container video');
             const observer = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
                     const video = entry.target;
                     if (entry.isIntersecting) {
-                        video.muted = isMuted; // تطبيق حالة الصوت الحالية
-                        let playPromise = video.play();
-                        
-                        if (playPromise !== undefined) {
-                            playPromise.catch(error => {
-                                // إذا منع المتصفح التشغيل بسبب الصوت، نقوم بكتمه وإعادة المحاولة
-                                console.log("المتصفح منع التشغيل بالصوت، جاري التشغيل بدون صوت...");
-                                video.muted = true;
-                                updateAllIcons(true); // تحديث الأيقونات لتبدو مكتومة
-                                isMuted = true;
-                                video.play();
-                            });
-                        }
+                        video.muted = isMuted; 
+                        video.play().catch(e => {
+                            video.muted = true;
+                            isMuted = true;
+                            updateAllIcons(true);
+                            video.play();
+                        });
                     } else {
                         video.pause();
                         video.currentTime = 0;
@@ -156,24 +156,19 @@
             videos.forEach(video => observer.observe(video));
         });
 
-        // تشغيل وإيقاف الفيديو بالضغط عليه
         function togglePlay(video) {
             video.paused ? video.play() : video.pause();
         }
 
-        // دالة التحكم بالصوت العام (تطبق على كل الفيديوهات)
         function toggleGlobalMute() {
-            isMuted = !isMuted; // عكس الحالة
+            isMuted = !isMuted;
             const allVideos = document.querySelectorAll('.video-container video');
-            
             allVideos.forEach(v => {
                 v.muted = isMuted;
-                // إذا كنا نقوم بتشغيل الصوت، نحاول تشغيل الفيديو الحالي
                 if (!isMuted && v.paused && isElementInViewport(v)) {
                     v.play().catch(e => {});
                 }
             });
-            
             updateAllIcons(isMuted);
         }
 
@@ -192,35 +187,45 @@
 
         function isElementInViewport(el) {
             const rect = el.getBoundingClientRect();
-            return (
-                rect.top >= 0 &&
-                rect.left >= 0 &&
-                rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
-                rect.right <= (window.innerWidth || document.documentElement.clientWidth)
-            );
+            return rect.top >= 0 && rect.left >= 0 && rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) && rect.right <= (window.innerWidth || document.documentElement.clientWidth);
         }
 
-        // --- نظام المشاركة ---
-        function shareVideo(username) {
-            const url = window.location.origin + '/profile/' + username;
-            if (navigator.share) {
-                navigator.share({
-                    title: 'Kanaw',
-                    text: 'شاهد هذا المحتوى على Kanaw!',
-                    url: url
-                }).then(() => console.log('تمت المشاركة'))
-                  .catch((error) => console.log('تم إلغاء المشاركة', error));
-            } else {
-                // نسخ الرابط كحل بديل
-                navigator.clipboard.writeText(url).then(() => {
-                    alert('تم نسخ رابط الحساب بنجاح!');
-                }).catch(() => {
-                    prompt('انسخ الرابط يدوياً:', url);
-                });
+        // --- الرفع المباشر ---
+        async function uploadDirectly(input) {
+            if (!input.files || !input.files[0]) return;
+            const file = input.files[0];
+            const formData = new FormData();
+            formData.append('video', file);
+
+            const uploadLabels = document.querySelectorAll('label[for="directUpload"]');
+            uploadLabels.forEach(l => l.innerHTML = 'جاري الرفع...');
+
+            try {
+                const res = await fetch('/api/upload_direct', { method: 'POST', body: formData });
+                if (res.ok) {
+                    window.location.reload();
+                } else {
+                    alert('فشل رفع الفيديو. قد يكون حجمه كبيراً جداً.');
+                }
+            } catch (e) {
+                alert('حدث خطأ في الاتصال أثناء الرفع');
+            } finally {
+                uploadLabels[0].innerHTML = 'رفع +';
+                input.value = '';
             }
         }
 
-        // --- نظام التعليقات ---
+        // --- المشاركة ---
+        function shareVideo(username) {
+            const url = window.location.origin + '/profile/' + username;
+            if (navigator.share) {
+                navigator.share({ title: 'Kanaw', text: 'شاهد هذا المحتوى!', url: url }).catch(err => console.log(err));
+            } else {
+                navigator.clipboard.writeText(url).then(() => alert('تم نسخ الرابط!')).catch(() => prompt('انسخ الرابط:', url));
+            }
+        }
+
+        // --- التعليقات ---
         let currentVideoId = null;
         const commentsModal = document.getElementById('commentsModal');
         const commentsList = document.getElementById('commentsList');
@@ -241,27 +246,17 @@
             commentsList.innerHTML = '<p style="text-align:center;color:#aaa;">جاري التحميل...</p>';
             try {
                 const res = await fetch(`/api/comments/${videoId}`);
-                if(!res.ok) throw new Error("Error");
                 const data = await res.json();
-                
                 commentsList.innerHTML = '';
                 if (data.length === 0) {
                     commentsList.innerHTML = '<p style="text-align:center;color:#888;">لا توجد تعليقات بعد. كن الأول!</p>';
                 } else {
                     data.forEach(c => {
-                        commentsList.innerHTML += `
-                            <div class="comment-item">
-                                <div style="width:35px;height:35px;background:#333;border-radius:50%;display:flex;justify-content:center;align-items:center;flex-shrink:0;font-size:20px;">👤</div>
-                                <div>
-                                    <div class="comment-user">@${c.user}</div>
-                                    <div class="comment-text">${c.content}</div>
-                                </div>
-                            </div>
-                        `;
+                        commentsList.innerHTML += `<div class="comment-item"><div style="width:35px;height:35px;background:#333;border-radius:50%;display:flex;justify-content:center;align-items:center;flex-shrink:0;">👤</div><div><div class="comment-user">@${c.user}</div><div class="comment-text">${c.content}</div></div></div>`;
                     });
                 }
             } catch (e) {
-                commentsList.innerHTML = '<p style="color:#ff4444;text-align:center;">حدث خطأ في تحميل التعليقات</p>';
+                commentsList.innerHTML = '<p style="color:#ff4444;text-align:center;">حدث خطأ في تحميل التعليقات. تأكد من تسجيل الدخول.</p>';
             }
         }
 
@@ -270,9 +265,8 @@
             const content = commentInput.value.trim();
             if (!content) return;
             
-            // تعطيل الزر مؤقتاً لمنع الإرسال المتكرر
-            const btn = event.target;
-            if(btn.tagName === 'BUTTON') { btn.disabled = true; btn.innerText = "..."; }
+            const btn = document.getElementById('postBtn');
+            btn.disabled = true; btn.innerText = "...";
 
             try {
                 const res = await fetch(`/comment/${currentVideoId}`, {
@@ -283,16 +277,15 @@
                 if (res.ok) {
                     commentInput.value = '';
                     loadComments(currentVideoId);
-                    // تحديث العداد أمام أيقونة التعليقات
                     const countSpan = document.getElementById(`comment-count-${currentVideoId}`);
                     if(countSpan) countSpan.innerText = parseInt(countSpan.innerText) + 1;
                 } else {
-                    alert('يجب تسجيل الدخول أولاً للتعليق!');
+                    alert('فشل إرسال التعليق، تأكد من تسجيل الدخول.');
                 }
             } catch (e) {
-                alert('حدث خطأ أثناء إرسال التعليق، تحقق من الإنترنت');
+                alert('خطأ في الاتصال بالإنترنت');
             } finally {
-                if(btn.tagName === 'BUTTON') { btn.disabled = false; btn.innerText = "نشر"; }
+                btn.disabled = false; btn.innerText = "نشر";
             }
         }
     </script>
