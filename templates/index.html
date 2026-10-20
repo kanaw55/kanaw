@@ -28,7 +28,6 @@
     </style>
 </head>
 <body>
-    <!-- نافذة التعليقات -->
     <div class="comments-modal" id="commentsModal">
         <div class="comments-header">
             <h3 style="margin:0;">التعليقات</h3>
@@ -72,7 +71,12 @@
         {% for video in videos %}
         <div class="video-container" data-video-id="{{ video.id }}">
             <div class="video-spinner" id="spinner-{{ video.id }}"></div>
-            <video src="{{ video.filename }}" loop playsinline muted onclick="togglePlay(this)" onwaiting="document.getElementById('spinner-{{ video.id }}').style.display='block'" onplaying="document.getElementById('spinner-{{ video.id }}').style.display='none'"></video>
+            <video src="{{ video.filename }}" loop playsinline muted preload="metadata"
+                   onclick="togglePlay(this)" 
+                   onwaiting="document.getElementById('spinner-{{ video.id }}').style.display='block'" 
+                   onplaying="document.getElementById('spinner-{{ video.id }}').style.display='none'"
+                   oncanplay="document.getElementById('spinner-{{ video.id }}').style.display='none'"></video>
+            
             <button class="mute-btn" onclick="toggleMute(this)"><i class="fa-solid fa-volume-xmark"></i></button>
 
             {% if current_user.is_authenticated and current_user.id == video.user_id %}
@@ -98,9 +102,10 @@
                 </a>
                 <div class="action" onclick="openComments({{ video.id }})">
                     <i class="fa-solid fa-comment-dots"></i>
-                    <span>{{ video.comments|length }}</span>
+                    <span id="comment-count-{{ video.id }}">{{ video.comments|length }}</span>
                 </div>
-                <div class="action">
+                <!-- زر المشاركة -->
+                <div class="action" onclick="shareVideo('{{ video.user.username }}')">
                     <i class="fa-solid fa-share"></i>
                     <span>مشاركة</span>
                 </div>
@@ -120,8 +125,65 @@
         <a href="{% if current_user.is_authenticated %}/inbox{% else %}/login{% endif %}"><i class="fa-solid fa-envelope"></i> الرسائل</a>
         <a href="{% if current_user.is_authenticated %}/profile/{{ current_user.username }}{% else %}/login{% endif %}"><i class="fa-solid fa-user"></i> حسابي</a>
     </div>
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    
     <script>
+        // --- نظام تشغيل وإيقاف الفيديو عند التمرير ---
+        document.addEventListener("DOMContentLoaded", function() {
+            const videos = document.querySelectorAll('.video-container video');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    const video = entry.target;
+                    if (entry.isIntersecting) {
+                        video.muted = globalMuted; // تطبيق حالة الصوت العامة
+                        video.play().catch(e => console.log("خطأ:", e));
+                    } else {
+                        video.pause();
+                        video.currentTime = 0;
+                    }
+                });
+            }, { threshold: 0.6 });
+            videos.forEach(video => observer.observe(video));
+        });
+
+        function togglePlay(video) {
+            video.paused ? video.play() : video.pause();
+        }
+
+        // --- نظام الصوت العام (مثل تيك توك) ---
+        let globalMuted = true;
+        function toggleMute(btn) {
+            globalMuted = !globalMuted; // عكس الحالة العامة
+            const allVideos = document.querySelectorAll('.video-container video');
+            const allBtns = document.querySelectorAll('.mute-btn i');
+            
+            allVideos.forEach(v => v.muted = globalMuted);
+            allBtns.forEach(icon => {
+                if (globalMuted) {
+                    icon.classList.remove('fa-volume-high');
+                    icon.classList.add('fa-volume-xmark');
+                } else {
+                    icon.classList.remove('fa-volume-xmark');
+                    icon.classList.add('fa-volume-high');
+                }
+            });
+        }
+
+        // --- نظام المشاركة ---
+        function shareVideo(username) {
+            const url = window.location.origin + '/profile/' + username;
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Kanaw',
+                    text: 'شاهد هذا المحتوى على Kanaw!',
+                    url: url
+                }).then(() => console.log('تمت المشاركة'))
+                  .catch((error) => console.log('تم إلغاء المشاركة', error));
+            } else {
+                alert('المشاركة غير مدعومة، انسخ الرابط: ' + url);
+            }
+        }
+
+        // --- نظام التعليقات ---
         let currentVideoId = null;
         const commentsModal = document.getElementById('commentsModal');
         const commentsList = document.getElementById('commentsList');
@@ -141,7 +203,9 @@
             commentsList.innerHTML = '<p style="text-align:center;">جاري التحميل...</p>';
             try {
                 const res = await fetch(`/api/comments/${videoId}`);
+                if(!res.ok) throw new Error("Error");
                 const data = await res.json();
+                
                 commentsList.innerHTML = '';
                 if (data.length === 0) {
                     commentsList.innerHTML = '<p style="text-align:center;color:#888;">لا توجد تعليقات بعد. كن الأول!</p>';
@@ -149,7 +213,7 @@
                     data.forEach(c => {
                         commentsList.innerHTML += `
                             <div class="comment-item">
-                                <div style="width:30px;height:30px;background:#333;border-radius:50%;display:flex;justify-content:center;align-items:center;">👤</div>
+                                <div style="width:30px;height:30px;background:#333;border-radius:50%;display:flex;justify-content:center;align-items:center;flex-shrink:0;">👤</div>
                                 <div>
                                     <div class="comment-user">@${c.user}</div>
                                     <div class="comment-text">${c.content}</div>
@@ -159,7 +223,7 @@
                     });
                 }
             } catch (e) {
-                commentsList.innerHTML = '<p style="color:red;">خطأ في تحميل التعليقات</p>';
+                commentsList.innerHTML = '<p style="color:red;text-align:center;">حدث خطأ في تحميل التعليقات</p>';
             }
         }
 
@@ -177,6 +241,9 @@
                 if (res.ok) {
                     commentInput.value = '';
                     loadComments(currentVideoId);
+                    // تحديث العداد أمام أيقونة التعليقات
+                    const countSpan = document.getElementById(`comment-count-${currentVideoId}`);
+                    if(countSpan) countSpan.innerText = parseInt(countSpan.innerText) + 1;
                 }
             } catch (e) {
                 alert('حدث خطأ أثناء إرسال التعليق');

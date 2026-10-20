@@ -11,7 +11,6 @@ import cloudinary.uploader
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-123')
 
-# --- إعدادات قاعدة البيانات ---
 basedir = os.path.abspath(os.path.dirname(__file__))
 db_url = os.environ.get('DATABASE_URL', 'sqlite:///' + os.path.join(basedir, 'social.db'))
 if db_url.startswith("postgres://"):
@@ -20,7 +19,6 @@ app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True, 'pool_recycle': 300}
 
-# --- إعدادات Cloudinary ---
 cloudinary.config(
     cloud_name = "hgeundkj",
     api_key = "648417333443189",
@@ -120,15 +118,11 @@ def index():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated: return redirect(url_for('index'))
-    
-    # التحقق من عدد الحسابات على هذا الجهاز (الحد الأقصى 2)
     accounts_created = int(request.cookies.get('accounts_created', 0))
-    
     if request.method == 'POST':
         if accounts_created >= 2:
             flash('عذراً، لقد وصلت للحد الأقصى لإنشاء الحسابات على هذا الجهاز (حسابين فقط).')
             return redirect(url_for('register'))
-            
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
         if not username or not password:
@@ -137,18 +131,14 @@ def register():
         if User.query.filter_by(username=username).first():
             flash('اسم المستخدم محجوز، اختر اسماً آخر')
             return redirect(url_for('register'))
-        
         new_user = User(username=username)
         new_user.set_password(password)
         db.session.add(new_user)
         db.session.commit()
         login_user(new_user)
-        
-        # تحديث الكوكيز لزيادة العداد
         resp = make_response(redirect(url_for('index')))
         resp.set_cookie('accounts_created', str(accounts_created + 1), max_age=30*24*60*60)
         return resp
-        
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -171,7 +161,6 @@ def logout():
     logout_user()
     return redirect(url_for('index'))
 
-# --- مسارات التعليقات الجديدة ---
 @app.route('/api/comments/<int:video_id>')
 def get_comments(video_id):
     comments = Comment.query.filter_by(video_id=video_id).order_by(Comment.timestamp.desc()).all()
@@ -180,7 +169,8 @@ def get_comments(video_id):
 @app.route('/comment/<int:video_id>', methods=['POST'])
 @login_required
 def add_comment(video_id):
-    content = request.json.get('content')
+    data = request.get_json()
+    content = data.get('content') if data else None
     if content:
         comment = Comment(content=content, user_id=current_user.id, video_id=video_id)
         db.session.add(comment)
@@ -188,7 +178,6 @@ def add_comment(video_id):
         return jsonify({'success': True})
     return jsonify({'success': False})
 
-# --- باقي المسارات ---
 @app.route('/settings', methods=['GET', 'POST'])
 @login_required
 def settings():
@@ -217,14 +206,11 @@ def profile(username):
         has_requested = FollowRequest.query.filter_by(sender_id=current_user.id, receiver_id=user.id).first() is not None
 
     can_view = False
-    if not user.is_private:
-        can_view = True
-    elif current_user.is_authenticated and (is_following or current_user.id == user.id):
+    if not user.is_private or (current_user.is_authenticated and (is_following or current_user.id == user.id)):
         can_view = True
 
     videos = Video.query.filter_by(user_id=user.id).order_by(Video.id.desc()).all() if can_view else []
     total_likes = sum(v.likes for v in videos) if can_view else 0
-
     followers_count = user.followers.count()
     return render_template('profile.html', user=user, videos=videos, total_likes=total_likes, is_following=is_following, has_requested=has_requested, can_view=can_view, followers_count=followers_count)
 
@@ -274,8 +260,14 @@ def upload():
         file = request.files.get('video')
         caption = request.form.get('caption')
         if file and file.filename != '':
+            # رفع الفيديو إلى Cloudinary
             upload_result = cloudinary.uploader.upload(file, resource_type="video")
             video_url = upload_result.get('secure_url')
+            
+            # 👇 إضافة ضغط وتقليل حجم الفيديو تلقائياً لتسريع التحميل
+            if '/video/upload/' in video_url:
+                video_url = video_url.replace('/video/upload/', '/video/upload/q_auto,f_auto/')
+                
             db.session.add(Video(filename=video_url, caption=caption, user=current_user))
             db.session.commit()
             return redirect(url_for('index'))
