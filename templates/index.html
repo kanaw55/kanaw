@@ -5,18 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Kanaw</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
         body { margin: 0; padding: 0; background-color: #000; overflow: hidden; }
-        .video-feed { height: 100vh; overflow-y: scroll; scroll-snap-type: y mandatory; scrollbar-width: none; }
+        
+        /* تعديل مهم: استخدام dvh بدلاً من vh لتناسب شاشة الهاتف وتترك مساحة للشريط السفلي */
+        .video-feed { height: 100dvh; overflow-y: scroll; scroll-snap-type: y mandatory; scrollbar-width: none; padding-bottom: 60px; box-sizing: border-box;}
         .video-feed::-webkit-scrollbar { display: none; }
-        .video-container { height: 100vh; width: 100vw; scroll-snap-align: start; position: relative; display: flex; justify-content: center; align-items: center; background: #000; }
+        
+        .video-container { height: calc(100dvh - 60px); width: 100vw; scroll-snap-align: start; position: relative; display: flex; justify-content: center; align-items: center; background: #000; }
         .video-container video { width: 100%; height: 100%; object-fit: contain; }
+        
         .notif-badge { position: absolute; top: -5px; right: -5px; background: red; color: white; font-size: 10px; padding: 2px 5px; border-radius: 50%; font-weight: bold; }
         .bell-container { position: relative; display: inline-block; margin-right: 15px; }
         .video-spinner { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 50px; height: 50px; border: 5px solid rgba(255,255,255,0.3); border-top: 5px solid #fe2c55; border-radius: 50%; animation: spin 1s linear infinite; z-index: 5; display: none; }
         @keyframes spin { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
-        .comments-modal { display: none; position: fixed; bottom: 0; left: 0; width: 100%; height: 60%; background: #1a1a1a; border-radius: 20px 20px 0 0; z-index: 100; flex-direction: column; }
+        
+        .comments-modal { display: none; position: fixed; bottom: 0; left: 0; width: 100%; height: 60%; background: #1a1a1a; border-radius: 20px 20px 0 0; z-index: 999; flex-direction: column; }
         .comments-header { padding: 15px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
         .comments-list { flex: 1; padding: 15px; overflow-y: auto; }
         .comment-item { display: flex; gap: 10px; margin-bottom: 15px; }
@@ -24,7 +28,15 @@
         .comment-input-area { padding: 10px; display: flex; gap: 10px; border-top: 1px solid #333; background: #111; }
         .comment-input-area input { flex: 1; padding: 10px; border-radius: 20px; border: none; background: #333; color: white; }
         .comment-input-area button { background: #fe2c55; color: white; border: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; }
+        
         .upload-label { background: #25D366; color: white; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; display: inline-block; }
+        .delete-icon { position: absolute; top: 70px; right: 15px; color: #dc3545; font-size: 24px; z-index: 10; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 50%; }
+
+        /* شريط التنقل السفلي */
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; height: 60px; background: #000; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #222; z-index: 100; padding-bottom: env(safe-area-inset-bottom); box-sizing: content-box;}
+        .bottom-nav a { color: #888; text-decoration: none; font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+        .bottom-nav a.active { color: #fff; }
+        .bottom-nav a i { font-size: 20px; }
     </style>
 </head>
 <body>
@@ -42,7 +54,7 @@
         {% endif %}
     </div>
 
-    <div class="top-nav" style="position: fixed; top: 0; width: 100%; padding: 15px; display: flex; justify-content: space-between; z-index: 10; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);">
+    <div class="top-nav" style="position: fixed; top: 0; width: 100%; padding: 15px; display: flex; justify-content: space-between; z-index: 10; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent); box-sizing: border-box;">
         {% if current_user.is_authenticated %}
             <div>
                 <label for="directUpload" class="upload-label">رفع +</label>
@@ -58,7 +70,7 @@
                 <a href="/logout" style="color:white; text-decoration:none;"><i class="fa-solid fa-right-from-bracket"></i></a>
             </div>
         {% else %}
-            <div><a href="/login" class="btn-login" style="color:white; margin-right:10px;">دخول</a></div>
+            <div><a href="/login" class="btn-login" style="color:white; margin-right:10px; text-decoration:none;">دخول</a></div>
         {% endif %}
     </div>
 
@@ -74,13 +86,17 @@
             
             <button class="mute-btn" onclick="toggleGlobalMute()" style="position: absolute; top: 70px; left: 15px; background: rgba(0,0,0,0.5); color: white; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 18px; z-index: 10;"><i class="fa-solid fa-volume-xmark"></i></button>
 
-            <div class="video-info" style="position: absolute; bottom: 60px; right: 15px; width: 70%; text-align: right; z-index: 5; text-shadow: 1px 1px 3px rgba(0,0,0,0.8);">
+            {% if current_user.is_authenticated and current_user.id == video.user_id %}
+                <a href="/delete_video/{{ video.id }}" class="delete-icon" onclick="return confirm('هل أنت متأكد من حذف هذا الفيديو؟')"><i class="fa-solid fa-trash"></i></a>
+            {% endif %}
+
+            <div class="video-info" style="position: absolute; bottom: 20px; right: 15px; width: 70%; text-align: right; z-index: 5; text-shadow: 1px 1px 3px rgba(0,0,0,0.8);">
                 <a href="/profile/{{ video.user.username }}" style="color:white; text-decoration:none; font-weight:bold; font-size: 16px;">@{{ video.user.username }}</a>
                 <p style="color:white; margin: 5px 0;">{{ video.caption }}</p>
                 <div style="font-size: 14px; color:white;"><i class="fa-solid fa-music"></i> الصوت الأصلي</div>
             </div>
             
-            <div class="action-buttons" style="position: absolute; bottom: 60px; left: 10px; display: flex; flex-direction: column; align-items: center; gap: 20px; z-index: 5;">
+            <div class="action-buttons" style="position: absolute; bottom: 20px; left: 10px; display: flex; flex-direction: column; align-items: center; gap: 20px; z-index: 5;">
                 <div class="profile-btn" style="position: relative; margin-bottom: 10px;">
                     <a href="/profile/{{ video.user.username }}" style="text-decoration:none; color:white;">
                         <div class="avatar" style="width: 50px; height: 50px; background: #333; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; border: 2px solid #fff; overflow: hidden;">
@@ -107,6 +123,16 @@
             </div>
         </div>
         {% endfor %}
+    </div>
+
+    <!-- شريط التنقل السفلي للرئيسية -->
+    <div class="bottom-nav">
+        <a href="/" class="active"><i class="fa-solid fa-house"></i> الرئيسية</a>
+        <label for="directUpload" style="color:#888; display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; font-size:12px;">
+            <i class="fa-solid fa-circle-plus" style="font-size:24px;"></i>
+        </label>
+        <a href="{% if current_user.is_authenticated %}/inbox{% else %}/login{% endif %}"><i class="fa-solid fa-envelope"></i> الرسائل</a>
+        <a href="{% if current_user.is_authenticated %}/profile/{{ current_user.username }}{% else %}/login{% endif %}"><i class="fa-solid fa-user"></i> حسابي</a>
     </div>
     
     <script>
