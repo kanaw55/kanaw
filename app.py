@@ -42,7 +42,7 @@ followers = db.Table('followers',
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=False)
+    password_hash = db.Column(db.String(512), nullable=False)
     profile_pic = db.Column(db.String(500), default=None)
     is_private = db.Column(db.Boolean, default=False)
     followed = db.relationship('User', secondary=followers,
