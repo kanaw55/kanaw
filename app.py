@@ -60,6 +60,7 @@ class Video(db.Model):
     filename = db.Column(db.String(500), nullable=False)
     caption = db.Column(db.String(200), default="")
     likes = db.Column(db.Integer, default=0)
+    views = db.Column(db.Integer, default=0) # عداد المشاهدات الجديد
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     user = db.relationship('User', backref='videos')
     comments = db.relationship('Comment', backref='video', lazy=True, cascade="all, delete-orphan")
@@ -120,6 +121,14 @@ def index():
     random.shuffle(videos)
     return render_template('index.html', videos=videos)
 
+@app.route('/api/view/<int:video_id>', methods=['POST'])
+def api_view(video_id):
+    video = Video.query.get_or_404(video_id)
+    video.views += 1
+    db.session.commit()
+    return jsonify({'success': True, 'views': video.views})
+
+# (باقي مسارات اللايك، الرفع، التعليقات، الرسائل، الإعدادات، البروفايل تبقى كما هي)
 @app.route('/api/like/<int:video_id>', methods=['POST'])
 @login_required
 def api_like(video_id):
@@ -172,10 +181,12 @@ def api_add_comment(video_id):
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated: return redirect(url_for('index'))
+    accounts_created = 0
     try:
-        accounts_created = int(request.cookies.get("accounts_created", 0))
+        accounts_created = int(request.cookies.get('accounts_created', 0))
     except ValueError:
         accounts_created = 0
+        
     if request.method == 'POST':
         if accounts_created >= 2:
             flash('عذراً، لقد وصلت للحد الأقصى لإنشاء الحسابات على هذا الجهاز (حسابين فقط).')
@@ -355,11 +366,7 @@ def notifications():
     return render_template('notifications.html', notifications=notifs, requests=requests)
 
 with app.app_context():
-    try:
-        db.create_all()
-        print("✅ Database tables verified/created successfully!")
-    except Exception as e:
-        print(f"❌ Database error on startup: {e}")
+    db.create_all()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

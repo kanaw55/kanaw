@@ -2,9 +2,11 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>صفحة {{ user.username }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { font-family: sans-serif; background: #111; color: #fff; margin: 0; text-align: center; }
+        body { font-family: sans-serif; background: #111; color: #fff; margin: 0; text-align: center; padding-bottom: 60px; }
         .header { background: #222; padding: 30px; border-bottom: 1px solid #333; position: relative; }
         .settings-btn { position: absolute; top: 20px; left: 20px; color: white; font-size: 22px; text-decoration: none; }
         .avatar-container { width: 100px; height: 100px; background: #333; border-radius: 50%; margin: 0 auto 15px; display: flex; justify-content: center; align-items: center; font-size: 50px; border: 3px solid #fe2c55; overflow: hidden; }
@@ -12,40 +14,35 @@
         .edit-avatar-btn { background: #007bff; color: white; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 12px; margin-top: 10px; display:inline-block;}
         input[type="file"] { display: none; }
         .stats { display: flex; justify-content: center; gap: 20px; margin-top: 20px; }
-        .stat-box { background: #333; padding: 10px 20px; border-radius: 8px; }
-        .stat-box h3 { margin: 0; color: #fe2c55; }
+        .stat-box h3 { margin: 0; color: #fe2c55; font-size: 18px; }
         .stat-box p { margin: 5px 0 0; font-size: 12px; color: #aaa; }
         .btn { color: white; text-decoration: none; padding: 8px 20px; border-radius: 5px; display: inline-block; margin-top: 15px; font-weight: bold; margin-left: 5px; margin-right: 5px; border: none; cursor: pointer;}
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; padding: 15px; }
-        .vid-box { background: #222; border-radius: 8px; overflow: hidden; position: relative; }
-        .vid-box video { width: 100%; height: 250px; object-fit: cover; }
-        .delete-btn { position: absolute; top: 10px; left: 10px; background: #dc3545; color: white; padding: 5px 10px; border-radius: 5px; text-decoration: none; font-size: 12px; font-weight: bold; z-index: 10;}
+        
+        /* شبكة الفيديوهات 3 أعمدة */
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 2px; }
+        .vid-box { background: #222; aspect-ratio: 9/16; position: relative; overflow: hidden; }
+        .vid-box video { width: 100%; height: 100%; object-fit: cover; }
+        .views-overlay { position: absolute; bottom: 5px; left: 5px; font-size: 12px; font-weight: bold; text-shadow: 1px 1px 2px black; display: flex; align-items: center; gap: 4px;}
+        
         .private-screen { padding: 50px 20px; background: #1a1a1a; border-radius: 10px; margin: 20px auto; max-width: 400px; }
     </style>
 </head>
 <body>
     <div class="header">
         {% if current_user.is_authenticated and current_user.id == user.id %}
-            <a href="/settings" class="settings-btn">⚙️</a>
+            <a href="/settings" class="settings-btn"><i class="fa-solid fa-gear"></i></a>
         {% endif %}
 
         <div class="avatar-container">
-            {% if user.profile_pic %}
-                <img src="{{ user.profile_pic }}">
-            {% else %}
-                👤
-            {% endif %}
+            {% if user.profile_pic %}<img src="{{ user.profile_pic }}">{% else %}👤{% endif %}
         </div>
         
-        <h2>
-            @{{ user.username }} 
-            {% if user.is_private %} 🔒 {% endif %}
-        </h2>
+        <h2>@{{ user.username }} {% if user.is_private %} 🔒 {% endif %}</h2>
 
         {% if current_user.is_authenticated and current_user.id == user.id %}
             <form method="POST" enctype="multipart/form-data">
                 <input type="file" name="profile_pic" id="picInput" accept="image/*" onchange="this.form.submit()">
-                <label for="picInput" class="edit-avatar-btn">📷 تغيير الصورة</label>
+                <label for="picInput" class="edit-avatar-btn"><i class="fa-solid fa-camera"></i> تغيير الصورة</label>
             </form>
         {% endif %}
 
@@ -57,36 +54,29 @@
 
         <div style="margin-top: 15px;">
             {% if current_user.is_authenticated and current_user.id != user.id %}
-                <a href="/toggle_follow/{{ user.id }}" class="btn" style="background:{% if is_following %}#555{% elif has_requested %}#ff9800{% else %}#28a745{% endif %};">
+                <a href="/toggle_follow/{{ user.id }}" class="btn" style="background:{% if is_following %}#555{% elif has_requested %}#ff9800{% else %}#fe2c55{% endif %};">
                     {% if is_following %} إلغاء المتابعة {% elif has_requested %} تم إرسال الطلب ⏳ {% else %} متابعة {% endif %}
                 </a>
-                <a href="/chat/{{ user.username }}" class="btn" style="background:#007bff;">💬 رسالة</a>
+                <a href="/chat/{{ user.username }}" class="btn" style="background:#333;"><i class="fa-solid fa-envelope"></i></a>
             {% endif %}
-            <a href="/" class="btn" style="background:#333;">الرئيسية</a>
+            <a href="/" class="btn" style="background:#222;"><i class="fa-solid fa-house"></i></a>
         </div>
     </div>
 
     {% if not can_view %}
         <div class="private-screen">
             <h2>🔒 هذا الحساب خاص</h2>
-            <p>قم بمتابعة هذا الشخص لتتمكن من رؤية فيديوهاته ومتابعينه.</p>
+            <p>قم بمتابعة هذا الشخص لتتمكن من رؤية فيديوهاته.</p>
         </div>
     {% else %}
         <div class="grid">
             {% for video in videos %}
             <div class="vid-box">
-                <!-- زر الحذف يظهر فقط لصاحب الحساب -->
-                {% if current_user.is_authenticated and current_user.id == user.id %}
-                    <a href="/delete_video/{{ video.id }}" class="delete-btn" onclick="return confirm('هل أنت متأكد من حذف هذا الفيديو نهائياً؟')">🗑️ حذف</a>
-                {% endif %}
-                <video src="{{ video.filename }}" controls></video>
-                <div style="padding: 10px;">
-                    <p style="margin:0;">{{ video.caption }}</p>
-                    <p style="margin:5px 0 0; color:#fe2c55;">❤️ {{ video.likes }}</p>
-                </div>
+                <video src="{{ video.filename }}" muted playsinline onmouseover="this.play()" onmouseout="this.pause()"></video>
+                <div class="views-overlay"><i class="fa-solid fa-play"></i> {{ video.views }}</div>
             </div>
             {% else %}
-            <p style="grid-column: 1/-1;">لا توجد فيديوهات هنا بعد.</p>
+            <p style="grid-column: span 3; margin-top: 20px;">لا توجد فيديوهات هنا بعد.</p>
             {% endfor %}
         </div>
     {% endif %}

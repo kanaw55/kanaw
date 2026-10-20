@@ -7,30 +7,23 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
-        /* تنسيقات تيك توك */
         body { margin: 0; padding: 0; background-color: #000; overflow: hidden; }
         .video-feed { height: 100vh; overflow-y: scroll; scroll-snap-type: y mandatory; scrollbar-width: none; }
         .video-feed::-webkit-scrollbar { display: none; }
         .video-container { height: 100vh; width: 100vw; scroll-snap-align: start; position: relative; display: flex; justify-content: center; align-items: center; background: #000; }
         .video-container video { width: 100%; height: 100%; object-fit: contain; }
-        
         .notif-badge { position: absolute; top: -5px; right: -5px; background: red; color: white; font-size: 10px; padding: 2px 5px; border-radius: 50%; font-weight: bold; }
         .bell-container { position: relative; display: inline-block; margin-right: 15px; }
-        .delete-icon { position: absolute; top: 70px; right: 15px; color: #dc3545; font-size: 24px; z-index: 10; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 50%; }
-        
         .video-spinner { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 50px; height: 50px; border: 5px solid rgba(255,255,255,0.3); border-top: 5px solid #fe2c55; border-radius: 50%; animation: spin 1s linear infinite; z-index: 5; display: none; }
         @keyframes spin { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
-        
         .comments-modal { display: none; position: fixed; bottom: 0; left: 0; width: 100%; height: 60%; background: #1a1a1a; border-radius: 20px 20px 0 0; z-index: 100; flex-direction: column; }
         .comments-header { padding: 15px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
         .comments-list { flex: 1; padding: 15px; overflow-y: auto; }
         .comment-item { display: flex; gap: 10px; margin-bottom: 15px; }
         .comment-user { font-weight: bold; color: #fe2c55; font-size: 14px; }
-        .comment-text { font-size: 14px; }
         .comment-input-area { padding: 10px; display: flex; gap: 10px; border-top: 1px solid #333; background: #111; }
         .comment-input-area input { flex: 1; padding: 10px; border-radius: 20px; border: none; background: #333; color: white; }
         .comment-input-area button { background: #fe2c55; color: white; border: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; }
-        
         .upload-label { background: #25D366; color: white; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; display: inline-block; }
     </style>
 </head>
@@ -46,8 +39,6 @@
             <input type="text" id="commentInput" placeholder="أضف تعليقاً..." onkeypress="if(event.key === 'Enter') postComment()">
             <button onclick="postComment()" id="postBtn">نشر</button>
         </div>
-        {% else %}
-        <div style="padding:15px;text-align:center;color:#888;">سجل دخولك لتتمكن من التعليق</div>
         {% endif %}
     </div>
 
@@ -56,22 +47,18 @@
             <div>
                 <label for="directUpload" class="upload-label">رفع +</label>
                 <input type="file" id="directUpload" accept="video/*" style="display: none;" onchange="uploadDirectly(this)">
-                <a href="/inbox" class="icon-btn" style="margin-right: 10px; color:white; text-decoration:none;"><i class="fa-solid fa-envelope"></i></a>
+                <a href="/inbox" style="margin-right: 10px; color:white; text-decoration:none;"><i class="fa-solid fa-envelope"></i></a>
             </div>
             <div style="display:flex; align-items:center;">
                 <div class="bell-container">
-                    <a href="/notifications" class="icon-btn" style="color:white; text-decoration:none;"><i class="fa-solid fa-bell"></i></a>
+                    <a href="/notifications" style="color:white; text-decoration:none;"><i class="fa-solid fa-bell"></i></a>
                     {% if unread_notifications > 0 %}<span class="notif-badge">{{ unread_notifications }}</span>{% endif %}
                 </div>
-                <a href="/profile/{{ current_user.username }}" class="icon-btn" style="margin-left: 15px; color:white; text-decoration:none;"><i class="fa-solid fa-user"></i></a>
-                <a href="/logout" class="icon-btn" style="color:white; text-decoration:none;"><i class="fa-solid fa-right-from-bracket"></i></a>
+                <a href="/profile/{{ current_user.username }}" style="margin-left: 15px; color:white; text-decoration:none;"><i class="fa-solid fa-user"></i></a>
+                <a href="/logout" style="color:white; text-decoration:none;"><i class="fa-solid fa-right-from-bracket"></i></a>
             </div>
         {% else %}
-            <div>
-                <a href="/login" class="btn-login">دخول</a>
-                <a href="/register" class="btn-login" style="background:#333;">حساب جديد</a>
-            </div>
-            <span style="color:#aaa; font-size:14px;">أنت ضيف</span>
+            <div><a href="/login" class="btn-login" style="color:white; margin-right:10px;">دخول</a></div>
         {% endif %}
     </div>
 
@@ -87,10 +74,6 @@
             
             <button class="mute-btn" onclick="toggleGlobalMute()" style="position: absolute; top: 70px; left: 15px; background: rgba(0,0,0,0.5); color: white; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 18px; z-index: 10;"><i class="fa-solid fa-volume-xmark"></i></button>
 
-            {% if current_user.is_authenticated and current_user.id == video.user_id %}
-                <a href="/delete_video/{{ video.id }}" class="delete-icon" onclick="return confirm('هل أنت متأكد من حذف هذا الفيديو؟')"><i class="fa-solid fa-trash"></i></a>
-            {% endif %}
-
             <div class="video-info" style="position: absolute; bottom: 60px; right: 15px; width: 70%; text-align: right; z-index: 5; text-shadow: 1px 1px 3px rgba(0,0,0,0.8);">
                 <a href="/profile/{{ video.user.username }}" style="color:white; text-decoration:none; font-weight:bold; font-size: 16px;">@{{ video.user.username }}</a>
                 <p style="color:white; margin: 5px 0;">{{ video.caption }}</p>
@@ -105,50 +88,38 @@
                         </div>
                     </a>
                 </div>
-                <!-- زر اللايك بدون تحديث -->
                 <div class="action" onclick="likeVideo({{ video.id }}, this)" style="display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; color: white;">
                     <i class="fa-solid fa-heart" style="color:#fe2c55; font-size: 30px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8);"></i>
                     <span style="font-size: 12px; font-weight: bold;" class="like-count-{{ video.id }}">{{ video.likes }}</span>
                 </div>
-                
                 <div class="action" onclick="openComments({{ video.id }})" style="display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; color: white;">
                     <i class="fa-solid fa-comment-dots" style="font-size: 30px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8);"></i>
                     <span style="font-size: 12px; font-weight: bold;" id="comment-count-{{ video.id }}">{{ video.comments|length }}</span>
                 </div>
-                
                 <div class="action" onclick="shareVideo('{{ video.user.username }}')" style="display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; color: white;">
                     <i class="fa-solid fa-share" style="font-size: 30px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8);"></i>
                     <span style="font-size: 12px; font-weight: bold;">مشاركة</span>
                 </div>
+                <div class="action" style="display: flex; flex-direction: column; align-items: center; gap: 5px; color: white;">
+                    <i class="fa-solid fa-play" style="font-size: 20px;"></i>
+                    <span style="font-size: 12px; font-weight: bold;" id="view-count-{{ video.id }}">{{ video.views }}</span>
+                </div>
             </div>
         </div>
-        {% else %}
-        <div class="empty-state" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; color: white;">
-            <h2>لا توجد فيديوهات بعد</h2>
-            <p>كن أول من يرفع فيديو!</p>
-        </div>
         {% endfor %}
-    </div>
-
-    <div class="bottom-nav" style="position: fixed; bottom: 0; width: 100%; height: 50px; background: #000; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #222; z-index: 10;">
-        <a href="/" class="active" style="color: white; text-decoration: none; font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 3px;"><i class="fa-solid fa-house" style="font-size: 20px;"></i> الرئيسية</a>
-        <label for="directUpload" style="color:#888; display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; font-size:12px;">
-            <i class="fa-solid fa-circle-plus" style="font-size:24px;"></i>
-        </label>
-        <a href="{% if current_user.is_authenticated %}/inbox{% else %}/login{% endif %}" style="color: #888; text-decoration: none; font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 3px;"><i class="fa-solid fa-envelope" style="font-size: 20px;"></i> الرسائل</a>
-        <a href="{% if current_user.is_authenticated %}/profile/{{ current_user.username }}{% else %}/login{% endif %}" style="color: #888; text-decoration: none; font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 3px;"><i class="fa-solid fa-user" style="font-size: 20px;"></i> حسابي</a>
     </div>
     
     <script>
         const isAuthenticated = {{ 'true' if current_user.is_authenticated else 'false' }};
         let isMuted = true;
 
-        // تشغيل وإيقاف الفيديوهات
         document.addEventListener("DOMContentLoaded", function() {
             const videos = document.querySelectorAll('.video-container video');
             const observer = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
                     const video = entry.target;
+                    const videoId = video.parentElement.getAttribute('data-video-id');
+                    
                     if (entry.isIntersecting) {
                         video.muted = isMuted; 
                         video.play().catch(e => {
@@ -156,6 +127,13 @@
                             isMuted = true;
                             updateAllIcons(true);
                             video.play();
+                        });
+                        // زيادة المشاهدات
+                        fetch(`/api/view/${videoId}`, {method: 'POST'}).then(res => res.json()).then(data => {
+                            if(data.success) {
+                                const viewSpan = document.getElementById(`view-count-${videoId}`);
+                                if(viewSpan) viewSpan.innerText = data.views;
+                            }
                         });
                     } else {
                         video.pause();
@@ -166,158 +144,89 @@
             videos.forEach(video => observer.observe(video));
         });
 
-        function togglePlay(video) {
-            video.paused ? video.play() : video.pause();
-        }
+        function togglePlay(video) { video.paused ? video.play() : video.pause(); }
 
         function toggleGlobalMute() {
             isMuted = !isMuted;
-            const allVideos = document.querySelectorAll('.video-container video');
-            allVideos.forEach(v => {
+            document.querySelectorAll('.video-container video').forEach(v => {
                 v.muted = isMuted;
-                if (!isMuted && v.paused && isElementInViewport(v)) {
-                    v.play().catch(e => {});
-                }
+                if (!isMuted && v.paused && isElementInViewport(v)) v.play().catch(e => {});
             });
             updateAllIcons(isMuted);
         }
 
         function updateAllIcons(muted) {
-            const icons = document.querySelectorAll('.mute-btn i');
-            icons.forEach(icon => {
-                if (muted) {
-                    icon.classList.remove('fa-volume-high');
-                    icon.classList.add('fa-volume-xmark');
-                } else {
-                    icon.classList.remove('fa-volume-xmark');
-                    icon.classList.add('fa-volume-high');
-                }
+            document.querySelectorAll('.mute-btn i').forEach(icon => {
+                if (muted) { icon.classList.remove('fa-volume-high'); icon.classList.add('fa-volume-xmark'); }
+                else { icon.classList.remove('fa-volume-xmark'); icon.classList.add('fa-volume-high'); }
             });
         }
 
         function isElementInViewport(el) {
             const rect = el.getBoundingClientRect();
-            return rect.top >= 0 && rect.left >= 0 && rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) && rect.right <= (window.innerWidth || document.documentElement.clientWidth);
+            return rect.top >= 0 && rect.bottom <= (window.innerHeight || document.documentElement.clientHeight);
         }
 
-        // --- دالة الإعجاب بدون تحديث الصفحة ---
         async function likeVideo(videoId, element) {
-            if (!isAuthenticated) {
-                alert('يجب تسجيل الدخول للإعجاب');
-                return;
-            }
-            
-            try {
-                const res = await fetch(`/api/like/${videoId}`, { method: 'POST' });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.success) {
-                        document.querySelector(`.like-count-${videoId}`).innerText = data.likes;
-                        element.querySelector('i').style.transform = 'scale(1.3)';
-                        setTimeout(() => element.querySelector('i').style.transform = 'scale(1)', 200);
-                    }
+            if (!isAuthenticated) return alert('يجب تسجيل الدخول');
+            const res = await fetch(`/api/like/${videoId}`, { method: 'POST' });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.success) {
+                    document.querySelector(`.like-count-${videoId}`).innerText = data.likes;
+                    element.querySelector('i').style.transform = 'scale(1.3)';
+                    setTimeout(() => element.querySelector('i').style.transform = 'scale(1)', 200);
                 }
-            } catch (e) {
-                console.error("خطأ في الإعجاب", e);
             }
         }
 
-        // --- الرفع المباشر ---
         async function uploadDirectly(input) {
             if (!input.files || !input.files[0]) return;
-            const file = input.files[0];
-            const formData = new FormData();
-            formData.append('video', file);
-
-            const uploadLabels = document.querySelectorAll('label[for="directUpload"]');
-            uploadLabels.forEach(l => l.innerHTML = 'جاري الرفع...');
-
+            const formData = new FormData(); formData.append('video', input.files[0]);
+            const labels = document.querySelectorAll('label[for="directUpload"]');
+            labels.forEach(l => l.innerHTML = 'جاري الرفع...');
             try {
                 const res = await fetch('/api/upload_direct', { method: 'POST', body: formData });
-                if (res.ok) {
-                    window.location.reload();
-                } else {
-                    alert('فشل رفع الفيديو. قد يكون حجمه كبيراً جداً.');
-                }
-            } catch (e) {
-                alert('حدث خطأ في الاتصال أثناء الرفع');
-            } finally {
-                uploadLabels[0].innerHTML = 'رفع +';
-                input.value = '';
-            }
+                if (res.ok) window.location.reload();
+                else alert('فشل الرفع');
+            } catch (e) { alert('خطأ في الاتصال'); }
         }
 
-        // --- المشاركة ---
         function shareVideo(username) {
             const url = window.location.origin + '/profile/' + username;
-            if (navigator.share) {
-                navigator.share({ title: 'Kanaw', text: 'شاهد هذا المحتوى!', url: url }).catch(err => console.log(err));
-            } else {
-                navigator.clipboard.writeText(url).then(() => alert('تم نسخ الرابط!')).catch(() => prompt('انسخ الرابط:', url));
-            }
+            if (navigator.share) navigator.share({ title: 'Kanaw', url: url });
+            else { navigator.clipboard.writeText(url); alert('تم نسخ الرابط'); }
         }
 
-        // --- التعليقات ---
         let currentVideoId = null;
-        const commentsModal = document.getElementById('commentsModal');
-        const commentsList = document.getElementById('commentsList');
-        const commentInput = document.getElementById('commentInput');
-
         function openComments(videoId) {
             currentVideoId = videoId;
-            commentsModal.style.display = 'flex';
+            document.getElementById('commentsModal').style.display = 'flex';
             loadComments(videoId);
         }
-
-        function closeComments() {
-            commentsModal.style.display = 'none';
-            currentVideoId = null;
-        }
+        function closeComments() { document.getElementById('commentsModal').style.display = 'none'; }
 
         async function loadComments(videoId) {
-            commentsList.innerHTML = '<p style="text-align:center;color:#aaa;">جاري التحميل...</p>';
-            try {
-                const res = await fetch(`/api/comments/${videoId}`);
-                const data = await res.json();
-                commentsList.innerHTML = '';
-                if (data.length === 0) {
-                    commentsList.innerHTML = '<p style="text-align:center;color:#888;">لا توجد تعليقات بعد. كن الأول!</p>';
-                } else {
-                    data.forEach(c => {
-                        commentsList.innerHTML += `<div class="comment-item"><div style="width:35px;height:35px;background:#333;border-radius:50%;display:flex;justify-content:center;align-items:center;flex-shrink:0;">👤</div><div><div class="comment-user">@${c.user}</div><div class="comment-text">${c.content}</div></div></div>`;
-                    });
-                }
-            } catch (e) {
-                commentsList.innerHTML = '<p style="color:#ff4444;text-align:center;">حدث خطأ في تحميل التعليقات. تأكد من تسجيل الدخول.</p>';
-            }
+            const res = await fetch(`/api/comments/${videoId}`);
+            const data = await res.json();
+            const list = document.getElementById('commentsList');
+            list.innerHTML = data.length === 0 ? '<p style="text-align:center;color:#888;">لا توجد تعليقات</p>' : '';
+            data.forEach(c => {
+                list.innerHTML += `<div class="comment-item"><div style="width:35px;height:35px;background:#333;border-radius:50%;display:flex;justify-content:center;align-items:center;">👤</div><div><div class="comment-user">@${c.user}</div><div>${c.content}</div></div></div>`;
+            });
         }
 
         async function postComment() {
-            if (!currentVideoId) return;
-            const content = commentInput.value.trim();
-            if (!content) return;
-            
-            const btn = document.getElementById('postBtn');
-            btn.disabled = true; btn.innerText = "...";
-
-            try {
-                const res = await fetch(`/api/comment/${currentVideoId}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ content: content })
-                });
-                if (res.ok) {
-                    commentInput.value = '';
-                    loadComments(currentVideoId);
-                    const countSpan = document.getElementById(`comment-count-${currentVideoId}`);
-                    if(countSpan) countSpan.innerText = parseInt(countSpan.innerText) + 1;
-                } else {
-                    alert('فشل إرسال التعليق، تأكد من تسجيل الدخول.');
-                }
-            } catch (e) {
-                alert('خطأ في الاتصال بالإنترنت');
-            } finally {
-                btn.disabled = false; btn.innerText = "نشر";
+            const content = document.getElementById('commentInput').value.trim();
+            if (!content || !currentVideoId) return;
+            const res = await fetch(`/api/comment/${currentVideoId}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content })
+            });
+            if (res.ok) {
+                document.getElementById('commentInput').value = '';
+                loadComments(currentVideoId);
+                const count = document.getElementById(`comment-count-${currentVideoId}`);
+                count.innerText = parseInt(count.innerText) + 1;
             }
         }
     </script>
