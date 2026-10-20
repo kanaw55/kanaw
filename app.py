@@ -172,7 +172,10 @@ def api_add_comment(video_id):
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated: return redirect(url_for('index'))
-    accounts_created = int(request.cookies.get('accounts_created', 0))
+    try:
+        accounts_created = int(request.cookies.get("accounts_created", 0))
+    except ValueError:
+        accounts_created = 0
     if request.method == 'POST':
         if accounts_created >= 2:
             flash('عذراً، لقد وصلت للحد الأقصى لإنشاء الحسابات على هذا الجهاز (حسابين فقط).')
