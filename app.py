@@ -356,8 +356,11 @@ def notifications():
     requests = FollowRequest.query.filter_by(receiver_id=current_user.id).all()
     return render_template('notifications.html', notifications=notifs, requests=requests)
 
-with app.app_context():
-    db.create_all()
+try:
+    with app.app_context():
+        db.create_all()
+except Exception as e:
+    print(f"DB Error: {e}")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
