@@ -2,15 +2,17 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Kanaw</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>الإشعارات</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { font-family: sans-serif; background: #111; color: #fff; margin: 0; padding: 20px; }
+        body { font-family: sans-serif; background: #111; color: #fff; margin: 0; padding: 15px; padding-bottom: 80px; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .header a { color: #fff; text-decoration: none; background: #333; padding: 8px 15px; border-radius: 5px; }
         .notif-list { display: flex; flex-direction: column; gap: 10px; max-width: 500px; margin: 0 auto; }
         .notif-item { background: #222; padding: 15px; border-radius: 10px; display: flex; align-items: center; gap: 15px; text-decoration: none; color: white; }
         .notif-item.unread { border-right: 4px solid #fe2c55; background: #2a1a1e; }
-        .avatar { width: 50px; height: 50px; background: #333; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; overflow: hidden; flex-shrink: 0;}
+        .avatar { width: 45px; height: 45px; background: #333; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 20px; overflow: hidden; flex-shrink: 0;}
         .avatar img { width: 100%; height: 100%; object-fit: cover; }
         .notif-text { flex: 1; font-size: 14px; line-height: 1.4; }
         .notif-text b { color: #fe2c55; }
@@ -18,13 +20,18 @@
         .btn-group { display: flex; gap: 5px; margin-top: 10px; }
         .btn-accept { background: #28a745; color: white; padding: 5px 10px; border-radius: 5px; text-decoration: none; font-size: 12px; }
         .btn-reject { background: #dc3545; color: white; padding: 5px 10px; border-radius: 5px; text-decoration: none; font-size: 12px; }
+        
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; height: 60px; background: #000; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #222; z-index: 100; padding-bottom: env(safe-area-inset-bottom); }
+        .bottom-nav a { color: #888; text-decoration: none; font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+        .bottom-nav a.active { color: #fff; }
+        .bottom-nav a i { font-size: 20px; }
     </style>
 </head>
 <body>
     <div class="header">
-        <a href="/">الرئيسية</a>
-        <h2>🔔 الإشعارات</h2>
-        <div></div>
+        <a href="/"><i class="fa-solid fa-house"></i> الرئيسية</a>
+        <h2 style="margin:0;">🔔 الإشعارات</h2>
+        <div style="width: 40px;"></div> <!-- للتوازن -->
     </div>
 
     <!-- قسم طلبات المتابعة -->
@@ -34,7 +41,11 @@
         {% for req in requests %}
             <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px; border-bottom:1px solid #333; padding-bottom:10px;">
                 <div class="avatar">
-                    {% if req.sender.profile_pic %}<img src="{{ url_for('static', filename='uploads/' + req.sender.profile_pic) }}">{% else %}👤{% endif %}
+                    {% if req.sender.profile_pic %}
+                        <img src="{{ req.sender.profile_pic }}">
+                    {% else %}
+                        👤
+                    {% endif %}
                 </div>
                 <div style="flex:1;">
                     <b>@{{ req.sender.username }}</b> يريد متابعتك.
@@ -74,6 +85,14 @@
         {% else %}
             <p style="text-align:center; color:#888;">لا توجد إشعارات حتى الآن.</p>
         {% endfor %}
+    </div>
+
+    <!-- شريط التنقل السفلي -->
+    <div class="bottom-nav">
+        <a href="/"><i class="fa-solid fa-house"></i> الرئيسية</a>
+        <a href="{% if current_user.is_authenticated %}/upload{% else %}/login{% endif %}"><i class="fa-solid fa-circle-plus" style="font-size: 24px;"></i></a>
+        <a href="{% if current_user.is_authenticated %}/inbox{% else %}/login{% endif %}"><i class="fa-solid fa-envelope"></i> الرسائل</a>
+        <a href="{% if current_user.is_authenticated %}/profile/{{ current_user.username }}{% else %}/login{% endif %}"><i class="fa-solid fa-user"></i> حسابي</a>
     </div>
 </body>
 </html>
