@@ -260,14 +260,10 @@ def upload():
         file = request.files.get('video')
         caption = request.form.get('caption')
         if file and file.filename != '':
-            # رفع الفيديو إلى Cloudinary
             upload_result = cloudinary.uploader.upload(file, resource_type="video")
             video_url = upload_result.get('secure_url')
-            
-            # 👇 إضافة ضغط وتقليل حجم الفيديو تلقائياً لتسريع التحميل
             if '/video/upload/' in video_url:
                 video_url = video_url.replace('/video/upload/', '/video/upload/q_auto,f_auto/')
-                
             db.session.add(Video(filename=video_url, caption=caption, user=current_user))
             db.session.commit()
             return redirect(url_for('index'))
