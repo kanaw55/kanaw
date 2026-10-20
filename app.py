@@ -14,11 +14,12 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-123')
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 db_url = os.environ.get('DATABASE_URL', 'sqlite:///' + os.path.join(basedir, 'social.db'))
+# تصحيح رابط قاعدة البيانات ليتوافق مع psycopg3
 if db_url.startswith("postgres://"):
-    db_url = db_url.replace("postgres://", "postgresql://", 1)
-if db_url.startswith("postgresql://"):
+    db_url = db_url.replace("postgres://", "postgresql+psycopg://", 1)
+elif db_url.startswith("postgresql://"):
     db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
-    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True, 'pool_recycle': 300}
@@ -110,7 +111,6 @@ def inject_notifications():
 
 @app.route('/')
 def index():
-    # جلب الفيديوهات
     if current_user.is_authenticated:
         followed_ids = [u.id for u in current_user.followed]
         videos = Video.query.join(User).filter(
@@ -118,13 +118,8 @@ def index():
         ).all()
     else:
         videos = Video.query.join(User).filter(User.is_private == False).all()
-    
-    # خلط الفيديوهات عشوائياً لكي لا تظهر فيديوهات نفس الشخص وراء بعضها
     random.shuffle(videos)
-    
     return render_template('index.html', videos=videos)
-
-# --- واجهات برمجة التطبيقات (API) للتفاعل بدون تحديث الصفحة ---
 
 @app.route('/api/like/<int:video_id>', methods=['POST'])
 @login_required
@@ -174,8 +169,6 @@ def api_add_comment(video_id):
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
     return jsonify({'success': False, 'error': 'Empty'}), 400
-
-# --- باقي المسارات (تسجيل، دخول، بروفايل، إلخ) ---
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -359,11 +352,13 @@ def notifications():
     requests = FollowRequest.query.filter_by(receiver_id=current_user.id).all()
     return render_template('notifications.html', notifications=notifs, requests=requests)
 
-try:
-    with app.app_context():
+# --- إنشاء الجداول عند بدء التشغيل ---
+with app.app_context():
+    try:
         db.create_all()
-except Exception as e:
-    print(f"DB Error: {e}")
+        print("✅ Database tables verified/created successfully!")
+    except Exception as e:
+        print(f"❌ Database error on startup: {e}")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
