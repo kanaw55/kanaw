@@ -8,11 +8,11 @@
     <style>
         body { margin: 0; padding: 0; background-color: #000; overflow: hidden; }
         
-        /* تعديل مهم: استخدام dvh بدلاً من vh لتناسب شاشة الهاتف وتترك مساحة للشريط السفلي */
-        .video-feed { height: 100dvh; overflow-y: scroll; scroll-snap-type: y mandatory; scrollbar-width: none; padding-bottom: 60px; box-sizing: border-box;}
+        .video-feed { height: calc(100dvh - 60px); overflow-y: scroll; scroll-snap-type: y mandatory; scrollbar-width: none; scroll-behavior: smooth; }
         .video-feed::-webkit-scrollbar { display: none; }
         
-        .video-container { height: calc(100dvh - 60px); width: 100vw; scroll-snap-align: start; position: relative; display: flex; justify-content: center; align-items: center; background: #000; }
+        /* ضبط ارتفاع الفيديو ليكون بالضبط حجم الشاشة ناقص الشريط السفلي */
+        .video-container { height: calc(100dvh - 60px); width: 100vw; scroll-snap-align: start; scroll-snap-stop: always; position: relative; display: flex; justify-content: center; align-items: center; background: #000; }
         .video-container video { width: 100%; height: 100%; object-fit: contain; }
         
         .notif-badge { position: absolute; top: -5px; right: -5px; background: red; color: white; font-size: 10px; padding: 2px 5px; border-radius: 50%; font-weight: bold; }
@@ -32,7 +32,6 @@
         .upload-label { background: #25D366; color: white; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; display: inline-block; }
         .delete-icon { position: absolute; top: 70px; right: 15px; color: #dc3545; font-size: 24px; z-index: 10; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 50%; }
 
-        /* شريط التنقل السفلي */
         .bottom-nav { position: fixed; bottom: 0; width: 100%; height: 60px; background: #000; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #222; z-index: 100; padding-bottom: env(safe-area-inset-bottom); box-sizing: content-box;}
         .bottom-nav a { color: #888; text-decoration: none; font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
         .bottom-nav a.active { color: #fff; }
@@ -70,7 +69,7 @@
                 <a href="/logout" style="color:white; text-decoration:none;"><i class="fa-solid fa-right-from-bracket"></i></a>
             </div>
         {% else %}
-            <div><a href="/login" class="btn-login" style="color:white; margin-right:10px; text-decoration:none;">دخول</a></div>
+            <div><a href="/login" style="color:white; margin-right:10px; text-decoration:none;">دخول</a></div>
         {% endif %}
     </div>
 
@@ -78,7 +77,10 @@
         {% for video in videos %}
         <div class="video-container" data-video-id="{{ video.id }}">
             <div class="video-spinner" id="spinner-{{ video.id }}"></div>
-            <video src="{{ video.filename }}" loop playsinline muted preload="metadata"
+            
+            <!-- إضافة صورة الغلاف (Poster) لمنع المثلث القبيح -->
+            <video src="{{ video.filename }}" loop playsinline muted preload="metadata" 
+                   poster="{{ video.filename|replace('.mp4', '.jpg') }}"
                    onclick="togglePlay(this)" 
                    onwaiting="document.getElementById('spinner-{{ video.id }}').style.display='block'" 
                    onplaying="document.getElementById('spinner-{{ video.id }}').style.display='none'"
@@ -104,10 +106,13 @@
                         </div>
                     </a>
                 </div>
+                
+                <!-- اللايك الذكي -->
                 <div class="action" onclick="likeVideo({{ video.id }}, this)" style="display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; color: white;">
-                    <i class="fa-solid fa-heart" style="color:#fe2c55; font-size: 30px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8);"></i>
-                    <span style="font-size: 12px; font-weight: bold;" class="like-count-{{ video.id }}">{{ video.likes }}</span>
+                    <i class="fa-solid fa-heart like-icon-{{ video.id }}" style="color:{% if video.id in liked_videos %}#fe2c55{% else %}#fff{% endif %}; font-size: 30px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8);"></i>
+                    <span style="font-size: 12px; font-weight: bold;" class="like-count-{{ video.id }}">{{ video.likes_count }}</span>
                 </div>
+                
                 <div class="action" onclick="openComments({{ video.id }})" style="display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; color: white;">
                     <i class="fa-solid fa-comment-dots" style="font-size: 30px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8);"></i>
                     <span style="font-size: 12px; font-weight: bold;" id="comment-count-{{ video.id }}">{{ video.comments|length }}</span>
@@ -125,7 +130,6 @@
         {% endfor %}
     </div>
 
-    <!-- شريط التنقل السفلي للرئيسية -->
     <div class="bottom-nav">
         <a href="/" class="active"><i class="fa-solid fa-house"></i> الرئيسية</a>
         <label for="directUpload" style="color:#888; display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; font-size:12px;">
@@ -154,7 +158,7 @@
                             updateAllIcons(true);
                             video.play();
                         });
-                        // زيادة المشاهدات
+                        
                         fetch(`/api/view/${videoId}`, {method: 'POST'}).then(res => res.json()).then(data => {
                             if(data.success) {
                                 const viewSpan = document.getElementById(`view-count-${videoId}`);
@@ -193,6 +197,7 @@
             return rect.top >= 0 && rect.bottom <= (window.innerHeight || document.documentElement.clientHeight);
         }
 
+        // اللايك الذكي (تشغيل/إيقاف)
         async function likeVideo(videoId, element) {
             if (!isAuthenticated) return alert('يجب تسجيل الدخول');
             const res = await fetch(`/api/like/${videoId}`, { method: 'POST' });
@@ -200,8 +205,15 @@
                 const data = await res.json();
                 if (data.success) {
                     document.querySelector(`.like-count-${videoId}`).innerText = data.likes;
-                    element.querySelector('i').style.transform = 'scale(1.3)';
-                    setTimeout(() => element.querySelector('i').style.transform = 'scale(1)', 200);
+                    const icon = document.querySelector(`.like-icon-${videoId}`);
+                    
+                    if (data.is_liked) {
+                        icon.style.color = '#fe2c55'; // أحمر
+                        icon.style.transform = 'scale(1.3)';
+                        setTimeout(() => icon.style.transform = 'scale(1)', 200);
+                    } else {
+                        icon.style.color = '#fff'; // أبيض
+                    }
                 }
             }
         }

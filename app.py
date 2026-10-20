@@ -39,6 +39,11 @@ followers = db.Table('followers',
     db.Column('followed_id', db.Integer, db.ForeignKey('user.id'))
 )
 
+likes = db.Table('likes',
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
+    db.Column('video_id', db.Integer, db.ForeignKey('video.id'), primary_key=True)
+)
+
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
@@ -49,6 +54,7 @@ class User(UserMixin, db.Model):
         primaryjoin=(followers.c.follower_id == id),
         secondaryjoin=(followers.c.followed_id == id),
         backref=db.backref('followers', lazy='dynamic'), lazy='dynamic')
+    liked_videos = db.relationship('Video', secondary=likes, backref=db.backref('liked_by', lazy='dynamic'))
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -59,8 +65,8 @@ class Video(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     filename = db.Column(db.String(500), nullable=False)
     caption = db.Column(db.String(200), default="")
-    likes = db.Column(db.Integer, default=0)
-    views = db.Column(db.Integer, default=0) # عداد المشاهدات الجديد
+    likes_count = db.Column('likes', db.Integer, default=0)
+    views = db.Column(db.Integer, default=0)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     user = db.relationship('User', backref='videos')
     comments = db.relationship('Comment', backref='video', lazy=True, cascade="all, delete-orphan")
@@ -116,10 +122,13 @@ def index():
         videos = Video.query.join(User).filter(
             (User.is_private == False) | (Video.user_id == current_user.id) | (Video.user_id.in_(followed_ids))
         ).all()
+        liked_vids = [v.id for v in current_user.liked_videos]
     else:
         videos = Video.query.join(User).filter(User.is_private == False).all()
+        liked_vids = []
+        
     random.shuffle(videos)
-    return render_template('index.html', videos=videos)
+    return render_template('index.html', videos=videos, liked_videos=liked_vids)
 
 @app.route('/api/view/<int:video_id>', methods=['POST'])
 def api_view(video_id):
@@ -128,17 +137,27 @@ def api_view(video_id):
     db.session.commit()
     return jsonify({'success': True, 'views': video.views})
 
-# (باقي مسارات اللايك، الرفع، التعليقات، الرسائل، الإعدادات، البروفايل تبقى كما هي)
 @app.route('/api/like/<int:video_id>', methods=['POST'])
 @login_required
 def api_like(video_id):
     video = Video.query.get_or_404(video_id)
-    if video.user_id != current_user.id:
-        video.likes += 1
+    if video.user_id == current_user.id:
+        return jsonify({'success': False, 'msg': 'Cannot like own video'})
+        
+    if current_user in video.liked_by:
+        # إزالة اللايك
+        video.liked_by.remove(current_user)
+        video.likes_count -= 1
+        is_liked = False
+    else:
+        # إضافة اللايك
+        video.liked_by.append(current_user)
+        video.likes_count += 1
         db.session.add(Notification(user_id=video.user_id, sender_id=current_user.id, type='like'))
-        db.session.commit()
-        return jsonify({'success': True, 'likes': video.likes})
-    return jsonify({'success': False, 'likes': video.likes})
+        is_liked = True
+        
+    db.session.commit()
+    return jsonify({'success': True, 'likes': video.likes_count, 'is_liked': is_liked})
 
 @app.route('/api/upload_direct', methods=['POST'])
 @login_required
@@ -261,7 +280,7 @@ def profile(username):
         can_view = True
 
     videos = Video.query.filter_by(user_id=user.id).order_by(Video.id.desc()).all() if can_view else []
-    total_likes = sum(v.likes for v in videos) if can_view else 0
+    total_likes = sum(v.likes_count for v in videos) if can_view else 0
     followers_count = user.followers.count()
     following_count = user.followed.count()
     return render_template('profile.html', user=user, videos=videos, total_likes=total_likes, is_following=is_following, has_requested=has_requested, can_view=can_view, followers_count=followers_count, following_count=following_count)
