@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, make_response
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.utils import secure_filename
@@ -10,7 +10,15 @@ import cloudinary.uploader
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-123')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///social.db'
+
+# --- إعدادات قاعدة البيانات ---
+basedir = os.path.abspath(os.path.dirname(__file__))
+db_url = os.environ.get('DATABASE_URL', 'sqlite:///' + os.path.join(basedir, 'social.db'))
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True, 'pool_recycle': 300}
 
 # --- إعدادات Cloudinary ---
 cloudinary.config(
@@ -33,7 +41,7 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
-    profile_pic = db.Column(db.String(500), default=None) # تم زيادة الحجم ليتسع للروابط
+    profile_pic = db.Column(db.String(500), default=None)
     is_private = db.Column(db.Boolean, default=False)
     followed = db.relationship('User', secondary=followers,
         primaryjoin=(followers.c.follower_id == id),
@@ -47,11 +55,20 @@ class User(UserMixin, db.Model):
 
 class Video(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    filename = db.Column(db.String(500), nullable=False) # سيحفظ رابط Cloudinary هنا
+    filename = db.Column(db.String(500), nullable=False)
     caption = db.Column(db.String(200))
     likes = db.Column(db.Integer, default=0)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     user = db.relationship('User', backref='videos')
+    comments = db.relationship('Comment', backref='video', lazy=True)
+
+class Comment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    content = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    video_id = db.Column(db.Integer, db.ForeignKey('video.id'))
+    user = db.relationship('User', backref='comments')
 
 class Message(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -103,7 +120,15 @@ def index():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated: return redirect(url_for('index'))
+    
+    # التحقق من عدد الحسابات على هذا الجهاز (الحد الأقصى 2)
+    accounts_created = int(request.cookies.get('accounts_created', 0))
+    
     if request.method == 'POST':
+        if accounts_created >= 2:
+            flash('عذراً، لقد وصلت للحد الأقصى لإنشاء الحسابات على هذا الجهاز (حسابين فقط).')
+            return redirect(url_for('register'))
+            
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
         if not username or not password:
@@ -112,12 +137,18 @@ def register():
         if User.query.filter_by(username=username).first():
             flash('اسم المستخدم محجوز، اختر اسماً آخر')
             return redirect(url_for('register'))
+        
         new_user = User(username=username)
         new_user.set_password(password)
         db.session.add(new_user)
         db.session.commit()
         login_user(new_user)
-        return redirect(url_for('index'))
+        
+        # تحديث الكوكيز لزيادة العداد
+        resp = make_response(redirect(url_for('index')))
+        resp.set_cookie('accounts_created', str(accounts_created + 1), max_age=30*24*60*60)
+        return resp
+        
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -140,6 +171,24 @@ def logout():
     logout_user()
     return redirect(url_for('index'))
 
+# --- مسارات التعليقات الجديدة ---
+@app.route('/api/comments/<int:video_id>')
+def get_comments(video_id):
+    comments = Comment.query.filter_by(video_id=video_id).order_by(Comment.timestamp.desc()).all()
+    return jsonify([{'id': c.id, 'content': c.content, 'user': c.user.username, 'time': c.timestamp.strftime('%Y-%m-%d %H:%M')} for c in comments])
+
+@app.route('/comment/<int:video_id>', methods=['POST'])
+@login_required
+def add_comment(video_id):
+    content = request.json.get('content')
+    if content:
+        comment = Comment(content=content, user_id=current_user.id, video_id=video_id)
+        db.session.add(comment)
+        db.session.commit()
+        return jsonify({'success': True})
+    return jsonify({'success': False})
+
+# --- باقي المسارات ---
 @app.route('/settings', methods=['GET', 'POST'])
 @login_required
 def settings():
@@ -153,11 +202,9 @@ def settings():
 @app.route('/profile/<username>', methods=['GET', 'POST'])
 def profile(username):
     user = User.query.filter_by(username=username).first_or_404()
-    
     if request.method == 'POST' and current_user.is_authenticated and current_user.id == user.id:
         file = request.files.get('profile_pic')
         if file and file.filename != '':
-            # رفع الصورة إلى Cloudinary
             upload_result = cloudinary.uploader.upload(file, resource_type="image")
             user.profile_pic = upload_result.get('secure_url')
             db.session.commit()
@@ -175,38 +222,29 @@ def profile(username):
     elif current_user.is_authenticated and (is_following or current_user.id == user.id):
         can_view = True
 
-    if can_view:
-        videos = Video.query.filter_by(user_id=user.id).order_by(Video.id.desc()).all()
-        total_likes = sum(v.likes for v in videos)
-    else:
-        videos = []
-        total_likes = 0
+    videos = Video.query.filter_by(user_id=user.id).order_by(Video.id.desc()).all() if can_view else []
+    total_likes = sum(v.likes for v in videos) if can_view else 0
 
     followers_count = user.followers.count()
-    return render_template('profile.html', user=user, videos=videos, total_likes=total_likes, 
-                           is_following=is_following, has_requested=has_requested, can_view=can_view, followers_count=followers_count)
+    return render_template('profile.html', user=user, videos=videos, total_likes=total_likes, is_following=is_following, has_requested=has_requested, can_view=can_view, followers_count=followers_count)
 
 @app.route('/toggle_follow/<int:user_id>')
 @login_required
 def toggle_follow(user_id):
     user = User.query.get_or_404(user_id)
     if user == current_user: return redirect(url_for('profile', username=user.username))
-
     if current_user.followed.filter(followers.c.followed_id == user.id).count() > 0:
         current_user.followed.remove(user)
         db.session.commit()
     else:
         if user.is_private:
             if not FollowRequest.query.filter_by(sender_id=current_user.id, receiver_id=user.id).first():
-                req = FollowRequest(sender_id=current_user.id, receiver_id=user.id)
-                db.session.add(req)
-                notif = Notification(user_id=user.id, sender_id=current_user.id, type='follow_request')
-                db.session.add(notif)
+                db.session.add(FollowRequest(sender_id=current_user.id, receiver_id=user.id))
+                db.session.add(Notification(user_id=user.id, sender_id=current_user.id, type='follow_request'))
                 db.session.commit()
         else:
             current_user.followed.append(user)
-            notif = Notification(user_id=user.id, sender_id=current_user.id, type='follow')
-            db.session.add(notif)
+            db.session.add(Notification(user_id=user.id, sender_id=current_user.id, type='follow'))
             db.session.commit()
     return redirect(url_for('profile', username=user.username))
 
@@ -236,12 +274,9 @@ def upload():
         file = request.files.get('video')
         caption = request.form.get('caption')
         if file and file.filename != '':
-            # رفع الفيديو إلى Cloudinary
             upload_result = cloudinary.uploader.upload(file, resource_type="video")
             video_url = upload_result.get('secure_url')
-            
-            new_video = Video(filename=video_url, caption=caption, user=current_user)
-            db.session.add(new_video)
+            db.session.add(Video(filename=video_url, caption=caption, user=current_user))
             db.session.commit()
             return redirect(url_for('index'))
     return render_template('upload.html')
@@ -262,8 +297,7 @@ def like(video_id):
     video = Video.query.get_or_404(video_id)
     if video.user_id != current_user.id:
         video.likes += 1
-        notif = Notification(user_id=video.user_id, sender_id=current_user.id, type='like')
-        db.session.add(notif)
+        db.session.add(Notification(user_id=video.user_id, sender_id=current_user.id, type='like'))
         db.session.commit()
     return redirect(request.referrer or url_for('index'))
 
@@ -283,13 +317,10 @@ def chat(username):
     if request.method == 'POST':
         content = request.form.get('content')
         if content:
-            msg = Message(sender_id=current_user.id, receiver_id=other_user.id, content=content)
-            db.session.add(msg)
-            notif = Notification(user_id=other_user.id, sender_id=current_user.id, type='message')
-            db.session.add(notif)
+            db.session.add(Message(sender_id=current_user.id, receiver_id=other_user.id, content=content))
+            db.session.add(Notification(user_id=other_user.id, sender_id=current_user.id, type='message'))
             db.session.commit()
             return redirect(url_for('chat', username=username))
-
     messages = Message.query.filter(
         ((Message.sender_id == current_user.id) & (Message.receiver_id == other_user.id)) |
         ((Message.sender_id == other_user.id) & (Message.receiver_id == current_user.id))
