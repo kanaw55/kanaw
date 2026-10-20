@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>Kanaw</title>
+    <style>
+        body { font-family: sans-serif; background: #111; color: #fff; margin: 0; padding: 20px; text-align: center; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .header a { color: #fff; text-decoration: none; background: #333; padding: 8px 15px; border-radius: 5px; }
+        .user-list { display: flex; flex-direction: column; gap: 10px; max-width: 500px; margin: 0 auto; }
+        .user-item { background: #222; padding: 15px; border-radius: 10px; display: flex; align-items: center; gap: 15px; text-decoration: none; color: white; }
+        .avatar { width: 50px; height: 50px; background: #333; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; overflow: hidden; }
+        .avatar img { width: 100%; height: 100%; object-fit: cover; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="/">الرئيسية</a>
+        <h2>📥 صندوق الرسائل</h2>
+        <div></div>
+    </div>
+    
+    <div class="user-list">
+        {% for user in users %}
+            <a href="/chat/{{ user.username }}" class="user-item">
+                <div class="avatar">
+                    {% if user.profile_pic %}
+                        <img src="{{ url_for('static', filename='uploads/' + user.profile_pic) }}">
+                    {% else %}
+                        👤
+                    {% endif %}
+                </div>
+                <h3>@{{ user.username }}</h3>
+            </a>
+        {% else %}
+            <p>لا توجد رسائل حتى الآن. ابدأ بمراسلة شخص من صفحته الشخصية!</p>
+        {% endfor %}
+    </div>
+</body>
+</html>

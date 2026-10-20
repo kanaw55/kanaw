@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>Kanaw</title>
+    <style>
+        body { font-family: sans-serif; background: #111; color: #fff; margin: 0; padding: 20px; text-align: center; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .header a { color: #fff; text-decoration: none; background: #333; padding: 8px 15px; border-radius: 5px; }
+        .settings-box { background: #222; padding: 20px; border-radius: 10px; max-width: 400px; margin: 0 auto; text-align: right; }
+        .switch-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 10px; background: #333; border-radius: 8px; }
+        .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #555; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #fe2c55; }
+        input:checked + .slider:before { transform: translateX(24px); }
+        button { width: 100%; padding: 12px; background: #25D366; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px;}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="/profile/{{ current_user.username }}">↩ رجوع</a>
+        <h2>⚙️ الإعدادات</h2>
+        <div></div>
+    </div>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        {% for msg in messages %}
+          <div style="background:#28a745; padding:10px; border-radius:5px; margin-bottom:15px;">{{ msg }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form class="settings-box" method="POST">
+        <div class="switch-container">
+            <div>
+                <strong>حساب خاص (Private)</strong>
+                <p style="color:#aaa; font-size:12px; margin-top:5px;">لن يرى فيديوهاتك إلا المتابعين المقبولين.</p>
+            </div>
+            <label class="switch">
+                <input type="checkbox" name="is_private" {% if current_user.is_private %}checked{% endif %}>
+                <span class="slider"></span>
+            </label>
+        </div>
+        <button type="submit">حفظ التغييرات</button>
+    </form>
+</body>
+</html>

@@ -1,0 +1,6 @@
+<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>Kanaw</title><style>body{font-family:sans-serif;background:#222;color:#fff;text-align:center;padding-top:50px}input{display:block;margin:10px auto;padding:10px;width:80%;border-radius:5px;border:none}button{padding:10px 20px;background:#007bff;color:#fff;border:none;border-radius:5px;cursor:pointer}.msg{color:red}</style></head><body>
+<h2>تسجيل الدخول</h2>
+{% with messages = get_flashed_messages() %}{% if messages %}{% for msg in messages %}<p class="msg">{{ msg }}</p>{% endfor %}{% endif %}{% endwith %}
+<form method="POST"><input type="text" name="username" placeholder="اسم المستخدم" required><input type="password" name="password" placeholder="كلمة المرور" required><button type="submit">دخول</button></form>
+<p><a href="/register" style="color:#aaa">إنشاء حساب جديد</a> | <a href="/" style="color:#aaa">الرئيسية</a></p>
+</body></html>

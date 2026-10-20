@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>Kanaw</title>
+    <style>
+        body { font-family: sans-serif; background: #111; color: #fff; margin: 0; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .header a { color: #fff; text-decoration: none; background: #333; padding: 8px 15px; border-radius: 5px; }
+        .notif-list { display: flex; flex-direction: column; gap: 10px; max-width: 500px; margin: 0 auto; }
+        .notif-item { background: #222; padding: 15px; border-radius: 10px; display: flex; align-items: center; gap: 15px; text-decoration: none; color: white; }
+        .notif-item.unread { border-right: 4px solid #fe2c55; background: #2a1a1e; }
+        .avatar { width: 50px; height: 50px; background: #333; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; overflow: hidden; flex-shrink: 0;}
+        .avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .notif-text { flex: 1; font-size: 14px; line-height: 1.4; }
+        .notif-text b { color: #fe2c55; }
+        .time { font-size: 11px; color: #888; margin-top: 5px; }
+        .btn-group { display: flex; gap: 5px; margin-top: 10px; }
+        .btn-accept { background: #28a745; color: white; padding: 5px 10px; border-radius: 5px; text-decoration: none; font-size: 12px; }
+        .btn-reject { background: #dc3545; color: white; padding: 5px 10px; border-radius: 5px; text-decoration: none; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="/">الرئيسية</a>
+        <h2>🔔 الإشعارات</h2>
+        <div></div>
+    </div>
+
+    <!-- قسم طلبات المتابعة -->
+    {% if requests %}
+    <div style="max-width: 500px; margin: 0 auto 20px; background: #222; padding: 15px; border-radius: 10px;">
+        <h3 style="color: #fe2c55; margin-top: 0;">طلبات متابعة جديدة</h3>
+        {% for req in requests %}
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px; border-bottom:1px solid #333; padding-bottom:10px;">
+                <div class="avatar">
+                    {% if req.sender.profile_pic %}<img src="{{ url_for('static', filename='uploads/' + req.sender.profile_pic) }}">{% else %}👤{% endif %}
+                </div>
+                <div style="flex:1;">
+                    <b>@{{ req.sender.username }}</b> يريد متابعتك.
+                </div>
+                <div>
+                    <a href="/accept_request/{{ req.id }}" class="btn-accept">قبول</a>
+                    <a href="/reject_request/{{ req.id }}" class="btn-reject">رفض</a>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    <div class="notif-list">
+        {% for notif in notifications %}
+            <a href="{% if notif.type == 'message' %}/chat/{{ notif.sender.username }}{% else %}/profile/{{ notif.sender.username }}{% endif %}" class="notif-item {% if not notif.is_read %}unread{% endif %}">
+                <div class="avatar">
+                    {% if notif.sender.profile_pic %}
+                        <img src="{{ url_for('static', filename='uploads/' + notif.sender.profile_pic) }}">
+                    {% else %}
+                        👤
+                    {% endif %}
+                </div>
+                <div class="notif-text">
+                    {% if notif.type == 'follow' %}
+                        قام <b>@{{ notif.sender.username }}</b> بمتابعتك.
+                    {% elif notif.type == 'like' %}
+                        أعجب <b>@{{ notif.sender.username }}</b> بفيديو لك. ❤️
+                    {% elif notif.type == 'message' %}
+                        أرسل لك <b>@{{ notif.sender.username }}</b> رسالة جديدة. 💬
+                    {% elif notif.type == 'follow_request' %}
+                        أرسل لك <b>@{{ notif.sender.username }}</b> طلب متابعة. (تمت معالجته بالأعلى)
+                    {% endif %}
+                    <div class="time">{{ notif.timestamp.strftime('%Y-%m-%d %H:%M') }}</div>
+                </div>
+            </a>
+        {% else %}
+            <p style="text-align:center; color:#888;">لا توجد إشعارات حتى الآن.</p>
+        {% endfor %}
+    </div>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kanaw</title>
+    <style>
+        body { font-family: sans-serif; background: #111; color: #fff; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        .header { background: #222; padding: 15px; display: flex; align-items: center; border-bottom: 1px solid #333; }
+        .header a { color: #fff; text-decoration: none; font-size: 20px; margin-left: 15px; }
+        .chat-box { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .message { max-width: 75%; padding: 10px 15px; border-radius: 15px; font-size: 15px; line-height: 1.4; }
+        .sent { background: #007bff; align-self: flex-start; border-bottom-left-radius: 0; }
+        .received { background: #333; align-self: flex-end; border-bottom-right-radius: 0; }
+        .input-area { background: #222; padding: 10px; display: flex; gap: 10px; border-top: 1px solid #333; }
+        .input-area input { flex: 1; padding: 12px; border-radius: 20px; border: none; outline: none; background: #333; color: #fff; }
+        .input-area button { background: #fe2c55; color: white; border: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="/inbox">↩</a>
+        <h3 style="margin: 0;">@{{ other_user.username }}</h3>
+    </div>
+
+    <div class="chat-box" id="chatBox">
+        {% for msg in messages %}
+            {% if msg.sender_id == current_user.id %}
+                <div class="message sent">{{ msg.content }}</div>
+            {% else %}
+                <div class="message received">{{ msg.content }}</div>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <form class="input-area" method="POST">
+        <input type="text" name="content" placeholder="اكتب رسالة..." required autocomplete="off">
+        <button type="submit">إرسال</button>
+    </form>
+
+    <script>
+        // النزول لآخر رسالة تلقائياً
+        const chatBox = document.getElementById('chatBox');
+        chatBox.scrollTop = chatBox.scrollHeight;
+    </script>
+</body>
+</html>
