@@ -5,6 +5,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import os
+import random
 import cloudinary
 import cloudinary.uploader
 
@@ -106,14 +107,32 @@ def inject_notifications():
 
 @app.route('/')
 def index():
+    # جلب الفيديوهات
     if current_user.is_authenticated:
         followed_ids = [u.id for u in current_user.followed]
         videos = Video.query.join(User).filter(
             (User.is_private == False) | (Video.user_id == current_user.id) | (Video.user_id.in_(followed_ids))
-        ).order_by(Video.id.desc()).all()
+        ).all()
     else:
-        videos = Video.query.join(User).filter(User.is_private == False).order_by(Video.id.desc()).all()
+        videos = Video.query.join(User).filter(User.is_private == False).all()
+    
+    # خلط الفيديوهات عشوائياً لكي لا تظهر فيديوهات نفس الشخص وراء بعضها
+    random.shuffle(videos)
+    
     return render_template('index.html', videos=videos)
+
+# --- واجهات برمجة التطبيقات (API) للتفاعل بدون تحديث الصفحة ---
+
+@app.route('/api/like/<int:video_id>', methods=['POST'])
+@login_required
+def api_like(video_id):
+    video = Video.query.get_or_404(video_id)
+    if video.user_id != current_user.id:
+        video.likes += 1
+        db.session.add(Notification(user_id=video.user_id, sender_id=current_user.id, type='like'))
+        db.session.commit()
+        return jsonify({'success': True, 'likes': video.likes})
+    return jsonify({'success': False, 'likes': video.likes})
 
 @app.route('/api/upload_direct', methods=['POST'])
 @login_required
@@ -138,9 +157,9 @@ def get_comments(video_id):
     comments = Comment.query.filter_by(video_id=video_id).order_by(Comment.timestamp.desc()).all()
     return jsonify([{'id': c.id, 'content': c.content, 'user': c.user.username, 'time': c.timestamp.strftime('%Y-%m-%d %H:%M')} for c in comments])
 
-@app.route('/comment/<int:video_id>', methods=['POST'])
+@app.route('/api/comment/<int:video_id>', methods=['POST'])
 @login_required
-def add_comment(video_id):
+def api_add_comment(video_id):
     data = request.get_json()
     content = data.get('content') if data else None
     if content:
@@ -153,7 +172,8 @@ def add_comment(video_id):
             return jsonify({'success': False, 'error': str(e)}), 500
     return jsonify({'success': False, 'error': 'Empty'}), 400
 
-# (باقي المسارات مثل التسجيل، الدخول، البروفايل، اللايك، الرسائل، الإشعارات تبقى كما هي)
+# --- باقي المسارات (تسجيل، دخول، بروفايل، إلخ) ---
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated: return redirect(url_for('index'))
@@ -301,16 +321,6 @@ def delete_video(video_id):
         flash('تم حذف الفيديو بنجاح')
     return redirect(request.referrer or url_for('index'))
 
-@app.route('/like/<int:video_id>')
-@login_required
-def like(video_id):
-    video = Video.query.get_or_404(video_id)
-    if video.user_id != current_user.id:
-        video.likes += 1
-        db.session.add(Notification(user_id=video.user_id, sender_id=current_user.id, type='like'))
-        db.session.commit()
-    return redirect(request.referrer or url_for('index'))
-
 @app.route('/inbox')
 @login_required
 def inbox():
@@ -346,8 +356,9 @@ def notifications():
     requests = FollowRequest.query.filter_by(receiver_id=current_user.id).all()
     return render_template('notifications.html', notifications=notifs, requests=requests)
 
+with app.app_context():
+    db.create_all()
+
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)

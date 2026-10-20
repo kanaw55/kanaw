@@ -7,6 +7,13 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
+        /* تنسيقات تيك توك */
+        body { margin: 0; padding: 0; background-color: #000; overflow: hidden; }
+        .video-feed { height: 100vh; overflow-y: scroll; scroll-snap-type: y mandatory; scrollbar-width: none; }
+        .video-feed::-webkit-scrollbar { display: none; }
+        .video-container { height: 100vh; width: 100vw; scroll-snap-align: start; position: relative; display: flex; justify-content: center; align-items: center; background: #000; }
+        .video-container video { width: 100%; height: 100%; object-fit: contain; }
+        
         .notif-badge { position: absolute; top: -5px; right: -5px; background: red; color: white; font-size: 10px; padding: 2px 5px; border-radius: 50%; font-weight: bold; }
         .bell-container { position: relative; display: inline-block; margin-right: 15px; }
         .delete-icon { position: absolute; top: 70px; right: 15px; color: #dc3545; font-size: 24px; z-index: 10; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 50%; }
@@ -24,7 +31,6 @@
         .comment-input-area input { flex: 1; padding: 10px; border-radius: 20px; border: none; background: #333; color: white; }
         .comment-input-area button { background: #fe2c55; color: white; border: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; }
         
-        /* زر الرفع المباشر */
         .upload-label { background: #25D366; color: white; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; display: inline-block; }
     </style>
 </head>
@@ -45,22 +51,20 @@
         {% endif %}
     </div>
 
-    <div class="top-nav">
+    <div class="top-nav" style="position: fixed; top: 0; width: 100%; padding: 15px; display: flex; justify-content: space-between; z-index: 10; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);">
         {% if current_user.is_authenticated %}
             <div>
-                <!-- زر الرفع المباشر -->
                 <label for="directUpload" class="upload-label">رفع +</label>
                 <input type="file" id="directUpload" accept="video/*" style="display: none;" onchange="uploadDirectly(this)">
-                
-                <a href="/inbox" class="icon-btn" style="margin-right: 10px;"><i class="fa-solid fa-envelope"></i></a>
+                <a href="/inbox" class="icon-btn" style="margin-right: 10px; color:white; text-decoration:none;"><i class="fa-solid fa-envelope"></i></a>
             </div>
             <div style="display:flex; align-items:center;">
                 <div class="bell-container">
-                    <a href="/notifications" class="icon-btn"><i class="fa-solid fa-bell"></i></a>
+                    <a href="/notifications" class="icon-btn" style="color:white; text-decoration:none;"><i class="fa-solid fa-bell"></i></a>
                     {% if unread_notifications > 0 %}<span class="notif-badge">{{ unread_notifications }}</span>{% endif %}
                 </div>
-                <a href="/profile/{{ current_user.username }}" class="icon-btn" style="margin-left: 15px;"><i class="fa-solid fa-user"></i></a>
-                <a href="/logout" class="icon-btn"><i class="fa-solid fa-right-from-bracket"></i></a>
+                <a href="/profile/{{ current_user.username }}" class="icon-btn" style="margin-left: 15px; color:white; text-decoration:none;"><i class="fa-solid fa-user"></i></a>
+                <a href="/logout" class="icon-btn" style="color:white; text-decoration:none;"><i class="fa-solid fa-right-from-bracket"></i></a>
             </div>
         {% else %}
             <div>
@@ -81,59 +85,65 @@
                    onplaying="document.getElementById('spinner-{{ video.id }}').style.display='none'"
                    oncanplay="document.getElementById('spinner-{{ video.id }}').style.display='none'"></video>
             
-            <button class="mute-btn" onclick="toggleGlobalMute()"><i class="fa-solid fa-volume-xmark"></i></button>
+            <button class="mute-btn" onclick="toggleGlobalMute()" style="position: absolute; top: 70px; left: 15px; background: rgba(0,0,0,0.5); color: white; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 18px; z-index: 10;"><i class="fa-solid fa-volume-xmark"></i></button>
 
             {% if current_user.is_authenticated and current_user.id == video.user_id %}
                 <a href="/delete_video/{{ video.id }}" class="delete-icon" onclick="return confirm('هل أنت متأكد من حذف هذا الفيديو؟')"><i class="fa-solid fa-trash"></i></a>
             {% endif %}
 
-            <div class="video-info">
+            <div class="video-info" style="position: absolute; bottom: 60px; right: 15px; width: 70%; text-align: right; z-index: 5; text-shadow: 1px 1px 3px rgba(0,0,0,0.8);">
                 <a href="/profile/{{ video.user.username }}" style="color:white; text-decoration:none; font-weight:bold; font-size: 16px;">@{{ video.user.username }}</a>
-                <p>{{ video.caption }}</p>
-                <div style="font-size: 14px;"><i class="fa-solid fa-music"></i> الصوت الأصلي</div>
+                <p style="color:white; margin: 5px 0;">{{ video.caption }}</p>
+                <div style="font-size: 14px; color:white;"><i class="fa-solid fa-music"></i> الصوت الأصلي</div>
             </div>
-            <div class="action-buttons">
-                <div class="profile-btn">
+            
+            <div class="action-buttons" style="position: absolute; bottom: 60px; left: 10px; display: flex; flex-direction: column; align-items: center; gap: 20px; z-index: 5;">
+                <div class="profile-btn" style="position: relative; margin-bottom: 10px;">
                     <a href="/profile/{{ video.user.username }}" style="text-decoration:none; color:white;">
-                        <div class="avatar">
-                            {% if video.user.profile_pic %}<img src="{{ video.user.profile_pic }}">{% else %}👤{% endif %}
+                        <div class="avatar" style="width: 50px; height: 50px; background: #333; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; border: 2px solid #fff; overflow: hidden;">
+                            {% if video.user.profile_pic %}<img src="{{ video.user.profile_pic }}" style="width:100%; height:100%; object-fit:cover;">{% else %}👤{% endif %}
                         </div>
                     </a>
                 </div>
-                <a href="/like/{{ video.id }}" class="action">
-                    <i class="fa-solid fa-heart" style="color:#fe2c55;"></i>
-                    <span>{{ video.likes }}</span>
-                </a>
-                <div class="action" onclick="openComments({{ video.id }})">
-                    <i class="fa-solid fa-comment-dots"></i>
-                    <span id="comment-count-{{ video.id }}">{{ video.comments|length }}</span>
+                <!-- زر اللايك بدون تحديث -->
+                <div class="action" onclick="likeVideo({{ video.id }}, this)" style="display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; color: white;">
+                    <i class="fa-solid fa-heart" style="color:#fe2c55; font-size: 30px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8);"></i>
+                    <span style="font-size: 12px; font-weight: bold;" class="like-count-{{ video.id }}">{{ video.likes }}</span>
                 </div>
-                <div class="action" onclick="shareVideo('{{ video.user.username }}')">
-                    <i class="fa-solid fa-share"></i>
-                    <span>مشاركة</span>
+                
+                <div class="action" onclick="openComments({{ video.id }})" style="display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; color: white;">
+                    <i class="fa-solid fa-comment-dots" style="font-size: 30px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8);"></i>
+                    <span style="font-size: 12px; font-weight: bold;" id="comment-count-{{ video.id }}">{{ video.comments|length }}</span>
+                </div>
+                
+                <div class="action" onclick="shareVideo('{{ video.user.username }}')" style="display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; color: white;">
+                    <i class="fa-solid fa-share" style="font-size: 30px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8);"></i>
+                    <span style="font-size: 12px; font-weight: bold;">مشاركة</span>
                 </div>
             </div>
         </div>
         {% else %}
-        <div class="empty-state">
+        <div class="empty-state" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; color: white;">
             <h2>لا توجد فيديوهات بعد</h2>
             <p>كن أول من يرفع فيديو!</p>
         </div>
         {% endfor %}
     </div>
 
-    <div class="bottom-nav">
-        <a href="/" class="active"><i class="fa-solid fa-house"></i> الرئيسية</a>
+    <div class="bottom-nav" style="position: fixed; bottom: 0; width: 100%; height: 50px; background: #000; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #222; z-index: 10;">
+        <a href="/" class="active" style="color: white; text-decoration: none; font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 3px;"><i class="fa-solid fa-house" style="font-size: 20px;"></i> الرئيسية</a>
         <label for="directUpload" style="color:#888; display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; font-size:12px;">
             <i class="fa-solid fa-circle-plus" style="font-size:24px;"></i>
         </label>
-        <a href="{% if current_user.is_authenticated %}/inbox{% else %}/login{% endif %}"><i class="fa-solid fa-envelope"></i> الرسائل</a>
-        <a href="{% if current_user.is_authenticated %}/profile/{{ current_user.username }}{% else %}/login{% endif %}"><i class="fa-solid fa-user"></i> حسابي</a>
+        <a href="{% if current_user.is_authenticated %}/inbox{% else %}/login{% endif %}" style="color: #888; text-decoration: none; font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 3px;"><i class="fa-solid fa-envelope" style="font-size: 20px;"></i> الرسائل</a>
+        <a href="{% if current_user.is_authenticated %}/profile/{{ current_user.username }}{% else %}/login{% endif %}" style="color: #888; text-decoration: none; font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 3px;"><i class="fa-solid fa-user" style="font-size: 20px;"></i> حسابي</a>
     </div>
     
     <script>
+        const isAuthenticated = {{ 'true' if current_user.is_authenticated else 'false' }};
         let isMuted = true;
 
+        // تشغيل وإيقاف الفيديوهات
         document.addEventListener("DOMContentLoaded", function() {
             const videos = document.querySelectorAll('.video-container video');
             const observer = new IntersectionObserver((entries) => {
@@ -188,6 +198,28 @@
         function isElementInViewport(el) {
             const rect = el.getBoundingClientRect();
             return rect.top >= 0 && rect.left >= 0 && rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) && rect.right <= (window.innerWidth || document.documentElement.clientWidth);
+        }
+
+        // --- دالة الإعجاب بدون تحديث الصفحة ---
+        async function likeVideo(videoId, element) {
+            if (!isAuthenticated) {
+                alert('يجب تسجيل الدخول للإعجاب');
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/api/like/${videoId}`, { method: 'POST' });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.success) {
+                        document.querySelector(`.like-count-${videoId}`).innerText = data.likes;
+                        element.querySelector('i').style.transform = 'scale(1.3)';
+                        setTimeout(() => element.querySelector('i').style.transform = 'scale(1)', 200);
+                    }
+                }
+            } catch (e) {
+                console.error("خطأ في الإعجاب", e);
+            }
         }
 
         // --- الرفع المباشر ---
@@ -269,7 +301,7 @@
             btn.disabled = true; btn.innerText = "...";
 
             try {
-                const res = await fetch(`/comment/${currentVideoId}`, {
+                const res = await fetch(`/api/comment/${currentVideoId}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ content: content })
