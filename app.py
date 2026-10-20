@@ -263,7 +263,8 @@ def profile(username):
     videos = Video.query.filter_by(user_id=user.id).order_by(Video.id.desc()).all() if can_view else []
     total_likes = sum(v.likes for v in videos) if can_view else 0
     followers_count = user.followers.count()
-    return render_template('profile.html', user=user, videos=videos, total_likes=total_likes, is_following=is_following, has_requested=has_requested, can_view=can_view, followers_count=followers_count)
+    following_count = user.followed.count()
+    return render_template('profile.html', user=user, videos=videos, total_likes=total_likes, is_following=is_following, has_requested=has_requested, can_view=can_view, followers_count=followers_count, following_count=following_count)
 
 @app.route('/toggle_follow/<int:user_id>')
 @login_required
