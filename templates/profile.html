@@ -31,7 +31,7 @@
 
         <div class="avatar-container">
             {% if user.profile_pic %}
-                <img src="{{ url_for('static', filename='uploads/' + user.profile_pic) }}">
+                <img src="{{ user.profile_pic }}">
             {% else %}
                 👤
             {% endif %}
@@ -79,7 +79,7 @@
                 {% if current_user.is_authenticated and current_user.id == user.id %}
                     <a href="/delete_video/{{ video.id }}" class="delete-btn" onclick="return confirm('هل أنت متأكد من حذف هذا الفيديو نهائياً؟')">🗑️ حذف</a>
                 {% endif %}
-                <video src="{{ url_for('static', filename='uploads/' + video.filename) }}" controls></video>
+                <video src="{{ video.filename }}" controls></video>
                 <div style="padding: 10px;">
                     <p style="margin:0;">{{ video.caption }}</p>
                     <p style="margin:5px 0 0; color:#fe2c55;">❤️ {{ video.likes }}</p>

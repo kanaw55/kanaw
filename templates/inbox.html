@@ -25,7 +25,7 @@
             <a href="/chat/{{ user.username }}" class="user-item">
                 <div class="avatar">
                     {% if user.profile_pic %}
-                        <img src="{{ url_for('static', filename='uploads/' + user.profile_pic) }}">
+                        <img src="{{ user.profile_pic }}">
                     {% else %}
                         👤
                     {% endif %}

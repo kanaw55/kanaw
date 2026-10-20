@@ -53,7 +53,7 @@
             <a href="{% if notif.type == 'message' %}/chat/{{ notif.sender.username }}{% else %}/profile/{{ notif.sender.username }}{% endif %}" class="notif-item {% if not notif.is_read %}unread{% endif %}">
                 <div class="avatar">
                     {% if notif.sender.profile_pic %}
-                        <img src="{{ url_for('static', filename='uploads/' + notif.sender.profile_pic) }}">
+                        <img src="{{ notif.sender.profile_pic }}">
                     {% else %}
                         👤
                     {% endif %}

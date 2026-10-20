@@ -41,7 +41,7 @@
     <div class="video-feed">
         {% for video in videos %}
         <div class="video-container">
-            <video src="{{ url_for('static', filename='uploads/' + video.filename) }}" loop playsinline muted onclick="togglePlay(this)"></video>
+            <video src="{{ video.filename }}" loop playsinline muted onclick="togglePlay(this)"></video>
             <button class="mute-btn" onclick="toggleMute(this)"><i class="fa-solid fa-volume-xmark"></i></button>
 
             <!-- زر حذف الفيديو إذا كان لك -->
@@ -59,7 +59,7 @@
                     <a href="/profile/{{ video.user.username }}" style="text-decoration:none; color:white;">
                         <div class="avatar">
                             {% if video.user.profile_pic %}
-                                <img src="{{ url_for('static', filename='uploads/' + video.user.profile_pic) }}">
+                                <img src="{{ video.user.profile_pic }}">
                             {% else %}
                                 👤
                             {% endif %}

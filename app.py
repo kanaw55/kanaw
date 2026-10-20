@@ -5,14 +5,20 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import os
+import cloudinary
+import cloudinary.uploader
 
 app = Flask(__name__)
-
-# إعدادات الأمان (تدعم متغيرات البيئة في Render)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-123')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///social.db'
-app.config['UPLOAD_FOLDER'] = 'static/uploads'
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# --- إعدادات Cloudinary ---
+cloudinary.config(
+    cloud_name = "hgeundkj",
+    api_key = "648417333443189",
+    api_secret = "JFLlaKxfpaUGKHOj_jHVRieLYpw",
+    secure = True
+)
 
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
@@ -27,7 +33,7 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
-    profile_pic = db.Column(db.String(100), default=None)
+    profile_pic = db.Column(db.String(500), default=None) # تم زيادة الحجم ليتسع للروابط
     is_private = db.Column(db.Boolean, default=False)
     followed = db.relationship('User', secondary=followers,
         primaryjoin=(followers.c.follower_id == id),
@@ -41,7 +47,7 @@ class User(UserMixin, db.Model):
 
 class Video(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    filename = db.Column(db.String(100), nullable=False)
+    filename = db.Column(db.String(500), nullable=False) # سيحفظ رابط Cloudinary هنا
     caption = db.Column(db.String(200))
     likes = db.Column(db.Integer, default=0)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
@@ -60,7 +66,7 @@ class Notification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     sender_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    type = db.Column(db.String(20)) # like, follow, message, follow_request
+    type = db.Column(db.String(20))
     is_read = db.Column(db.Boolean, default=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     sender = db.relationship('User', foreign_keys=[sender_id])
@@ -151,10 +157,9 @@ def profile(username):
     if request.method == 'POST' and current_user.is_authenticated and current_user.id == user.id:
         file = request.files.get('profile_pic')
         if file and file.filename != '':
-            filename = secure_filename(file.filename)
-            filename = f"avatar_{user.id}_{filename}"
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            user.profile_pic = filename
+            # رفع الصورة إلى Cloudinary
+            upload_result = cloudinary.uploader.upload(file, resource_type="image")
+            user.profile_pic = upload_result.get('secure_url')
             db.session.commit()
             return redirect(url_for('profile', username=user.username))
 
@@ -231,9 +236,11 @@ def upload():
         file = request.files.get('video')
         caption = request.form.get('caption')
         if file and file.filename != '':
-            filename = secure_filename(file.filename)
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            new_video = Video(filename=filename, caption=caption, user=current_user)
+            # رفع الفيديو إلى Cloudinary
+            upload_result = cloudinary.uploader.upload(file, resource_type="video")
+            video_url = upload_result.get('secure_url')
+            
+            new_video = Video(filename=video_url, caption=caption, user=current_user)
             db.session.add(new_video)
             db.session.commit()
             return redirect(url_for('index'))
@@ -244,9 +251,6 @@ def upload():
 def delete_video(video_id):
     video = Video.query.get_or_404(video_id)
     if video.user_id == current_user.id:
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], video.filename)
-        if os.path.exists(file_path):
-            os.remove(file_path)
         db.session.delete(video)
         db.session.commit()
         flash('تم حذف الفيديو بنجاح')
@@ -304,6 +308,5 @@ def notifications():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    # التعديل الخاص بـ Render (المنفذ الديناميكي)
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
