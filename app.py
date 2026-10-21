@@ -519,43 +519,51 @@ def notifications():
 @app.route('/generate_fake_data_secret')
 def generate_fake_data():
     try:
-        if User.query.count() > 100: return "قاعدة البيانات مليئة بالفعل!"
+        # الحد الأقصى (يمكنك زيادة الرقم إذا أردت المزيد)
+        if User.query.count() > 500: return "قاعدة البيانات ممتلئة جداً! (أكثر من 500 حساب)"
         
         first_names = ["ahmed", "sara", "mohammed", "lina", "omar", "nour", "khaled", "yara", "tariq", "huda", "adam", "maya", "ali", "fatima", "hassan", "zainab", "yousef", "layla", "majed", "dina", "sami", "reem", "anas", "salma", "zaid", "rana", "faris", "noor", "kareem", "aya"]
         suffixes = ["gamer", "art", "vlogs", "music", "funny", "cooking", "sports", "tech", "travel", "lifestyle", "fitness", "beauty", "food", "comedy", "news", "photo", "diy", "gaming", "movies", "books", "cars", "fashion", "dance", "sing", "code", "life", "world", "star", "king", "queen"]
-        sample_videos = ["https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4", "https://test-videos.co.uk/vids/sintel/mp4/h264/360/Sintel_360_10s_1MB.mp4", "https://test-videos.co.uk/vids/jellyfish/mp4/h264/360/Jellyfish_360_10s_1MB.mp4"]
         captions = ["شوفوا هذا الفيديو الرهيب! 🔥", "أفضل لحظة في حياتي ❤️", "لا تفوتوا هذا المشهد 😂", "تجربة جديدة وممتعة ✨", "استمتعوا بالمشاهدة 🎬", "ما رأيكم بهذا؟ 👀", "محتوى حصري لكم 💎", "شاركوني رأيكم بالتعليقات 👇", "كل يوم فيديو جديد 🚀", "أتمنى يعجبكم ❤️", "لا تنسوا المتابعة ✨", "جودة عالية 4K 🎥", "من تصويري الخاص 📸", "تحياتي لكم من فلسطين 🇵🇸", "Happy Day ✌️", "تحدي جديد 🔥"]
         comments_pool = ["فيديو رائع جداً! 🔥", "استمر يا بطل 👏", "أفضل محتوى شفته اليوم ❤️", "متابعك من فلسطين 🇵🇸", "ههههههه مضحك كثير 😂", "ما شاء الله، إبداع!", "كيف سويت هذا؟", "أول مرة أشوف زي هيك", "جودة عالية جداً", "أتمنى لك التوفيق", "أنت الأفضل!", "أضفتك للمفضلة ⭐", "منتظر جديدك", "شكراً على المحتوى", "الله يعطيك العافية"]
         
         users_to_add = []
-        for i in range(20):
+        for i in range(10): # إضافة 10 حسابات في كل مرة
             name = f"{random.choice(first_names)}_{random.choice(suffixes)}{random.randint(1000, 99999)}"
             user = User(username=name, bio=f"مرحباً، أنا {name}! أشارككم محتواي هنا ✨", profile_pic=f"https://i.pravatar.cc/150?u={random.randint(1, 1000)}")
-            user.set_password("123456"); users_to_add.append(user)
+            user.set_password("123456")
+            users_to_add.append(user)
         
         db.session.bulk_save_objects(users_to_add)
         db.session.commit()
 
-        all_users = User.query.all()
+        # جلب الحسابات الجديدة فقط
+        new_users = User.query.order_by(User.id.desc()).limit(10).all()
+        
         videos_to_add = []
-        for user in all_users:
-            for _ in range(3): # 3 videos per user
-                v = Video(filename=random.choice(sample_videos), caption=random.choice(captions), user_id=user.id, views=random.randint(100, 50000), likes_count=random.randint(10, 5000))
+        for user in new_users:
+            for _ in range(3): # 3 فيديوهات لكل حساب جديد
+                v = Video(filename=random.choice(eval(re.search(r'sample_videos = (\[.*?\])', code, re.DOTALL).group(1))), caption=random.choice(captions), user_id=user.id, views=random.randint(100, 50000), likes_count=random.randint(10, 5000))
                 videos_to_add.append(v)
         db.session.bulk_save_objects(videos_to_add)
         db.session.commit()
 
-        all_videos = Video.query.all()
+        all_videos = Video.query.order_by(Video.id.desc()).limit(30).all()
         comments_to_add = []
         for video in all_videos:
             for _ in range(random.randint(1, 3)):
-                commenter = random.choice(all_users)
+                commenter = random.choice(User.query.all())
                 if commenter.id != video.user_id:
                     c = Comment(content=random.choice(comments_pool), user_id=commenter.id, video_id=video.id, likes_count=random.randint(0, 100))
                     comments_to_add.append(c)
         db.session.bulk_save_objects(comments_to_add)
         db.session.commit()
-        return "🎉 تمت العملية بنجاح! كلمة المرور: 123456"
+        
+        return f"🎉 تمت إضافة 10 حسابات و 30 فيديو بنجاح!<br><br>عدد الحسابات الآن: {User.query.count()}<br>عدد الفيديوهات الآن: {Video.query.count()}<br><br>كلمة المرور: 123456"
+    except Exception as e:
+        db.session.rollback()
+        return f"حدث خطأ: {str(e)}"
+
     except Exception as e:
         db.session.rollback()
         return f"حدث خطأ: {str(e)}"
