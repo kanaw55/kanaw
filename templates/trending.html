@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>الترند - Kanaw</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: sans-serif; background: #111; color: #fff; margin: 0; padding-bottom: 60px; }
+        .header { background: linear-gradient(45deg, #ff0050, #ff9800); padding: 20px; text-align: center; border-bottom: 1px solid #333; }
+        .header h1 { margin: 0; font-size: 24px; color: #fff; text-shadow: 1px 1px 3px rgba(0,0,0,0.5);}
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 10px; }
+        .vid-box { background: #222; border-radius: 10px; overflow: hidden; cursor: pointer; position: relative; height: 250px;}
+        .vid-box img { width: 100%; height: 100%; object-fit: cover; }
+        .info { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.9)); padding: 10px; }
+        .info p { margin: 0; font-size: 13px; font-weight: bold; }
+        .info span { font-size: 11px; color: #fe2c55; }
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; height: 60px; background: #000; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #222; z-index: 100; padding-bottom: env(safe-area-inset-bottom); }
+        .bottom-nav a { color: #888; text-decoration: none; font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+        .bottom-nav a.active { color: #fff; }
+        .bottom-nav a i { font-size: 20px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1><i class="fa-solid fa-fire"></i> الترند الآن 🔥</h1>
+        <p style="margin:5px 0 0; font-size:13px; color:#eee;">أكثر الفيديوهات مشاهدة على Kanaw</p>
+    </div>
+
+    <div class="grid">
+        {% for video in videos %}
+        <div class="vid-box" onclick="window.location.href='/?video_id={{ video.id }}'">
+            <img src="{{ video.filename|replace('.mp4', '.jpg') }}" onerror="this.src='https://via.placeholder.com/150/333/fff?text=Video'">
+            <div class="info">
+                <p>@{{ video.user.username }}</p>
+                <span><i class="fa-solid fa-eye"></i> {{ video.views }} مشاهدة</span>
+            </div>
+        </div>
+        {% else %}
+        <p style="grid-column: span 2; text-align:center; color:#888; margin-top:50px;">لا توجد فيديوهات رائجة بعد.</p>
+        {% endfor %}
+    </div>
+
+    <div class="bottom-nav">
+        <a href="/"><i class="fa-solid fa-house"></i> الرئيسية</a>
+        <a href="/trending" class="active"><i class="fa-solid fa-fire" style="color:#f5c518;"></i> الترند</a>
+        <a href="/search"><i class="fa-solid fa-magnifying-glass"></i> بحث</a>
+        <a href="{% if current_user.is_authenticated %}/inbox{% else %}/login{% endif %}"><i class="fa-solid fa-envelope"></i> الرسائل</a>
+        <a href="{% if current_user.is_authenticated %}/profile/{{ current_user.username }}{% else %}/login{% endif %}"><i class="fa-solid fa-user"></i> حسابي</a>
+    </div>
+</body>
+</html>

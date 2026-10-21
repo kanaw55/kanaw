@@ -46,5 +46,15 @@
         </div>
         <button type="submit">حفظ التغييرات</button>
     </form>
+
+    <div class="settings-box" style="margin-top: 20px;">
+        <h3 style="margin-bottom: 15px; color: #fe2c55;"><i class="fa-solid fa-lock"></i> تغيير كلمة المرور</h3>
+        <form method="POST" action="/change_password">
+            <input type="password" name="old_password" placeholder="كلمة المرور القديمة" required style="width:100%; padding:10px; margin-bottom:10px; background:#333; border:none; border-radius:8px; color:white;">
+            <input type="password" name="new_password" placeholder="كلمة المرور الجديدة" required style="width:100%; padding:10px; margin-bottom:15px; background:#333; border:none; border-radius:8px; color:white;">
+            <button type="submit" style="width:100%; padding:12px; background:#fe2c55; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">تحديث كلمة المرور</button>
+        </form>
+    </div>
+    
 </body>
 </html>

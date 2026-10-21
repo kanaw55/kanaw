@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحكم المشرف - Kanaw</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: sans-serif; background: #111; color: #fff; margin: 0; padding-bottom: 50px; }
+        .header { background: #222; padding: 20px; border-bottom: 2px solid #fe2c55; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { margin: 0; font-size: 20px; color: #f5c518; }
+        .header a { color: #fff; text-decoration: none; background: #333; padding: 8px 15px; border-radius: 5px; }
+        
+        .container { padding: 20px; max-width: 800px; margin: 0 auto; }
+        .report-card { background: #222; border-radius: 10px; padding: 15px; margin-bottom: 15px; display: flex; align-items: center; gap: 15px; border-right: 4px solid #dc3545; }
+        
+        .vid-thumb { width: 60px; height: 90px; object-fit: cover; border-radius: 5px; background: #000; }
+        .report-info { flex: 1; }
+        .report-reason { color: #dc3545; font-weight: bold; font-size: 15px; margin-bottom: 5px; }
+        .report-meta { font-size: 12px; color: #888; }
+        
+        .actions { display: flex; flex-direction: column; gap: 10px; }
+        .btn-delete { background: #dc3545; color: white; text-decoration: none; padding: 8px 15px; border-radius: 5px; font-size: 13px; text-align: center; font-weight: bold; }
+        .btn-ignore { background: #444; color: white; text-decoration: none; padding: 8px 15px; border-radius: 5px; font-size: 13px; text-align: center; font-weight: bold; }
+        
+        .empty-msg { text-align: center; color: #888; margin-top: 50px; }
+        .flash-msg { background: #28a745; color: white; padding: 10px; border-radius: 5px; margin-bottom: 20px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1><i class="fa-solid fa-shield-halved"></i> لوحة تحكم المشرف</h1>
+        <a href="/"><i class="fa-solid fa-house"></i> الرئيسية</a>
+    </div>
+
+    <div class="container">
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}{% for message in messages %}<div class="flash-msg">{{ message }}</div>{% endfor %}{% endif %}
+        {% endwith %}
+
+        {% if reports %}
+            <h3>لديك {{ reports|length }} بلاغ يحتاج للمراجعة:</h3>
+            {% for report in reports %}
+                <div class="report-card">
+                    <!-- صورة مصغرة للفيديو -->
+                    <img src="{{ report.video.filename|replace('.mp4', '.jpg') }}" class="vid-thumb" onerror="this.src='https://via.placeholder.com/60x90/333/fff?text=Video'">
+                    
+                    <div class="report-info">
+                        <div class="report-reason"><i class="fa-solid fa-triangle-exclamation"></i> سبب البلاغ: {{ report.reason }}</div>
+                        <div class="report-meta">
+                            تم الإبلاغ بواسطة: <b>@{{ report.reporter.username }}</b> <br>
+                            صاحب الفيديو: <b>@{{ report.video.user.username }}</b> <br>
+                            تاريخ البلاغ: {{ report.timestamp.strftime('%Y-%m-%d %H:%M') }}
+                        </div>
+                    </div>
+                    
+                    <div class="actions">
+                        <a href="/admin/delete_vid/{{ report.video.id }}" class="btn-delete" onclick="return confirm('هل أنت متأكد من حذف الفيديو نهائياً؟')"><i class="fa-solid fa-trash"></i> حذف الفيديو</a>
+                        <a href="/admin/delete_report/{{ report.id }}" class="btn-ignore" onclick="return confirm('تجاهل هذا البلاغ؟')"><i class="fa-solid fa-check"></i> تجاهل</a>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-msg">
+                <h2><i class="fa-solid fa-check-circle" style="color: #28a745; font-size: 50px;"></i></h2>
+                <p>رائع! لا توجد أي بلاغات حالياً. مجتمعك آمن.</p>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>
