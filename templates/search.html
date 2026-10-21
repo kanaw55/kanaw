@@ -9,14 +9,25 @@
         body { font-family: sans-serif; background: #111; color: #fff; margin: 0; padding-bottom: 70px; }
         
         /* شريط البحث */
-        .search-header { position: sticky; top: 0; background: #111; padding: 10px 15px; z-index: 100; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #333; }
-        .search-header form { flex: 1; display: flex; background: #222; border-radius: 20px; padding: 8px 15px; align-items: center; }
-        .search-header input { flex: 1; background: transparent; border: none; color: white; outline: none; font-size: 16px; }
-        .search-header button { background: transparent; border: none; color: #fe2c55; font-size: 18px; cursor: pointer; }
-        .back-btn { color: white; text-decoration: none; font-size: 20px; }
+        .search-header { position: sticky; top: 0; background: #111; padding: 10px 15px; z-index: 100; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #222; }
+        .search-header a { color: white; text-decoration: none; font-size: 20px; }
+        .search-input-wrapper { flex: 1; display: flex; background: #222; border-radius: 20px; padding: 8px 15px; align-items: center; }
+        .search-input-wrapper input { flex: 1; background: transparent; border: none; color: white; outline: none; font-size: 16px; }
+        .search-input-wrapper i { color: #888; }
+        .clear-btn { background: none; border: none; color: #888; font-size: 16px; cursor: pointer; display: none; }
 
-        /* قسم المستخدمين */
+        /* سجل البحث */
+        .search-history { padding: 15px; }
+        .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .history-header h3 { margin: 0; font-size: 16px; color: #aaa; }
+        .history-header button { background: none; border: none; color: #fe2c55; font-size: 14px; cursor: pointer; }
+        .history-tags { display: flex; flex-wrap: wrap; gap: 10px; }
+        .history-tag { background: #222; padding: 8px 15px; border-radius: 20px; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+        .history-tag i { color: #888; font-size: 12px; }
+
+        /* نتائج البحث */
         .section-title { padding: 15px; font-size: 16px; font-weight: bold; color: #aaa; border-bottom: 1px solid #222; }
+        
         .user-list { display: flex; flex-direction: column; }
         .user-item { display: flex; align-items: center; gap: 15px; padding: 15px; text-decoration: none; color: white; border-bottom: 1px solid #222; }
         .user-avatar { width: 50px; height: 50px; background: #333; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; overflow: hidden; flex-shrink: 0;}
@@ -24,15 +35,14 @@
         .user-info h3 { margin: 0; font-size: 16px; }
         .user-info p { margin: 3px 0 0; font-size: 13px; color: #888; }
 
-        /* قسم الفيديوهات (شبكة) */
         .video-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 2px; }
         .vid-box { background: #222; aspect-ratio: 9/16; position: relative; overflow: hidden; cursor: pointer; }
         .vid-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .views-overlay { position: absolute; bottom: 5px; left: 5px; font-size: 12px; font-weight: bold; text-shadow: 1px 1px 3px black; display: flex; align-items: center; gap: 4px;}
         
         .empty-state { text-align: center; padding: 50px 20px; color: #888; }
+        .loading { text-align: center; padding: 20px; color: #fe2c55; display: none; }
 
-        /* شريط التنقل السفلي */
         .bottom-nav { position: fixed; bottom: 0; width: 100%; height: 60px; background: #000; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #222; z-index: 100; padding-bottom: env(safe-area-inset-bottom); }
         .bottom-nav a { color: #888; text-decoration: none; font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
         .bottom-nav a.active { color: #fff; }
@@ -40,58 +50,42 @@
     </style>
 </head>
 <body>
-    <!-- شريط البحث -->
     <div class="search-header">
-        <a href="/" class="back-btn"><i class="fa-solid fa-arrow-right"></i></a>
-        <form action="/search" method="GET">
-            <input type="text" name="q" value="{{ query }}" placeholder="ابحث عن مستخدم أو فيديو..." autofocus>
-            <button type="submit"><i class="fa-solid fa-magnifying-glass"></i></button>
-        </form>
+        <a href="/"><i class="fa-solid fa-arrow-right"></i></a>
+        <div class="search-input-wrapper">
+            <i class="fa-solid fa-magnifying-glass" style="margin-left: 10px;"></i>
+            <input type="text" id="searchInput" placeholder="ابحث عن مستخدم أو فيديو..." autocomplete="off">
+            <button class="clear-btn" id="clearBtn" onclick="clearSearch()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
     </div>
 
-    {% if query %}
-        {% if users %}
-            <div class="section-title">الحسابات</div>
-            <div class="user-list">
-                {% for user in users %}
-                <a href="/profile/{{ user.username }}" class="user-item">
-                    <div class="user-avatar">
-                        {% if user.profile_pic %}<img src="{{ user.profile_pic }}">{% else %}👤{% endif %}
-                    </div>
-                    <div class="user-info">
-                        <h3>@{{ user.username }}</h3>
-                        <p>{{ user.followers.count() }} متابع</p>
-                    </div>
-                </a>
-                {% endfor %}
-            </div>
-        {% endif %}
+    <div class="loading" id="loading"><i class="fa-solid fa-spinner fa-spin"></i> جاري البحث...</div>
 
-        {% if videos %}
-            <div class="section-title">الفيديوهات</div>
-            <div class="video-grid">
-                {% for video in videos %}
-                <div class="vid-box" onclick="window.location.href='/'">
-                    <img src="{{ video.filename|replace('.mp4', '.jpg') }}" onerror="this.src='https://via.placeholder.com/150/333/fff?text=Video'">
-                    <div class="views-overlay"><i class="fa-solid fa-play"></i> {{ video.views }}</div>
-                </div>
-                {% endfor %}
-            </div>
-        {% endif %}
-
-        {% if not users and not videos %}
-            <div class="empty-state">
-                <h2><i class="fa-solid fa-magnifying-glass"></i></h2>
-                <p>لم يتم العثور على نتائج لـ "{{ query }}"</p>
-            </div>
-        {% endif %}
-    {% else %}
-        <div class="empty-state">
-            <h2>ابحث عن أصدقائك أو فيديوهاتك المفضلة</h2>
+    <div id="searchHistoryContainer" class="search-history">
+        <div class="history-header">
+            <h3>عمليات البحث الأخيرة</h3>
+            <button onclick="clearHistory()">مسح الكل</button>
         </div>
-    {% endif %}
+        <div class="history-tags" id="historyTags"></div>
+    </div>
 
-    <!-- شريط التنقل السفلي -->
+    <div id="resultsContainer" style="display: none;">
+        <div id="usersSection" style="display: none;">
+            <div class="section-title">الحسابات</div>
+            <div class="user-list" id="usersList"></div>
+        </div>
+        
+        <div id="videosSection" style="display: none;">
+            <div class="section-title">الفيديوهات</div>
+            <div class="video-grid" id="videosList"></div>
+        </div>
+
+        <div id="noResults" class="empty-state" style="display: none;">
+            <h2><i class="fa-solid fa-magnifying-glass"></i></h2>
+            <p>لم يتم العثور على نتائج.</p>
+        </div>
+    </div>
+
     <div class="bottom-nav">
         <a href="/"><i class="fa-solid fa-house"></i> الرئيسية</a>
         <a href="/search" class="active"><i class="fa-solid fa-magnifying-glass"></i> بحث</a>
@@ -99,5 +93,148 @@
         <a href="{% if current_user.is_authenticated %}/inbox{% else %}/login{% endif %}"><i class="fa-solid fa-envelope"></i> الرسائل</a>
         <a href="{% if current_user.is_authenticated %}/profile/{{ current_user.username }}{% else %}/login{% endif %}"><i class="fa-solid fa-user"></i> حسابي</a>
     </div>
+
+    <script>
+        const searchInput = document.getElementById('searchInput');
+        const clearBtn = document.getElementById('clearBtn');
+        const loading = document.getElementById('loading');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const searchHistoryContainer = document.getElementById('searchHistoryContainer');
+        const usersSection = document.getElementById('usersSection');
+        const usersList = document.getElementById('usersList');
+        const videosSection = document.getElementById('videosSection');
+        const videosList = document.getElementById('videosList');
+        const noResults = document.getElementById('noResults');
+        const historyTags = document.getElementById('historyTags');
+
+        // إدارة سجل البحث
+        let searchHistory = JSON.parse(localStorage.getItem('searchHistory')) || [];
+
+        function renderHistory() {
+            historyTags.innerHTML = '';
+            searchHistory.forEach(term => {
+                const tag = document.createElement('div');
+                tag.className = 'history-tag';
+                tag.innerHTML = `<i class="fa-solid fa-clock-rotate-left"></i> ${term}`;
+                tag.onclick = () => {
+                    searchInput.value = term;
+                    performSearch(term);
+                };
+                historyTags.appendChild(tag);
+            });
+        }
+
+        function saveToHistory(term) {
+            term = term.trim();
+            if (!term) return;
+            searchHistory = searchHistory.filter(t => t !== term);
+            searchHistory.unshift(term);
+            if (searchHistory.length > 5) searchHistory.pop();
+            localStorage.setItem('searchHistory', JSON.stringify(searchHistory));
+            renderHistory();
+        }
+
+        function clearHistory() {
+            searchHistory = [];
+            localStorage.setItem('searchHistory', JSON.stringify(searchHistory));
+            renderHistory();
+        }
+
+        // تنفيذ البحث
+        let searchTimeout;
+        searchInput.addEventListener('input', function() {
+            const query = this.value.trim();
+            clearBtn.style.display = query ? 'block' : 'none';
+            
+            clearTimeout(searchTimeout);
+            
+            if (!query) {
+                resultsContainer.style.display = 'none';
+                searchHistoryContainer.style.display = 'block';
+                loading.style.display = 'none';
+                return;
+            }
+
+            searchHistoryContainer.style.display = 'none';
+            resultsContainer.style.display = 'block';
+            loading.style.display = 'block';
+            
+            // انتظار 500 مللي ثانية بعد آخر حرف للبحث (لتجنب الضغط على السيرفر)
+            searchTimeout = setTimeout(() => {
+                performSearch(query);
+            }, 500);
+        });
+
+        function clearSearch() {
+            searchInput.value = '';
+            clearBtn.style.display = 'none';
+            resultsContainer.style.display = 'none';
+            searchHistoryContainer.style.display = 'block';
+            searchInput.focus();
+        }
+
+        async function performSearch(query) {
+            loading.style.display = 'block';
+            usersSection.style.display = 'none';
+            videosSection.style.display = 'none';
+            noResults.style.display = 'none';
+
+            try {
+                const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+                const data = await res.json();
+                loading.style.display = 'none';
+                
+                saveToHistory(query);
+
+                let hasResults = false;
+
+                // عرض المستخدمين
+                if (data.users && data.users.length > 0) {
+                    hasResults = true;
+                    usersSection.style.display = 'block';
+                    usersList.innerHTML = '';
+                    data.users.forEach(user => {
+                        const avatar = user.profile_pic ? `<img src="${user.profile_pic}">` : '👤';
+                        usersList.innerHTML += `
+                            <a href="/profile/${user.username}" class="user-item">
+                                <div class="user-avatar">${avatar}</div>
+                                <div class="user-info">
+                                    <h3>@${user.username}</h3>
+                                    <p>${user.followers} متابع</p>
+                                </div>
+                            </a>
+                        `;
+                    });
+                }
+
+                // عرض الفيديوهات
+                if (data.videos && data.videos.length > 0) {
+                    hasResults = true;
+                    videosSection.style.display = 'block';
+                    videosList.innerHTML = '';
+                    data.videos.forEach(video => {
+                        videosList.innerHTML += `
+                            <div class="vid-box" onclick="window.location.href='/'">
+                                <img src="${video.thumbnail}" onerror="this.src='https://via.placeholder.com/150/333/fff?text=Video'">
+                                <div class="views-overlay"><i class="fa-solid fa-play"></i> ${video.views}</div>
+                            </div>
+                        `;
+                    });
+                }
+
+                if (!hasResults) {
+                    noResults.style.display = 'block';
+                }
+
+            } catch (e) {
+                loading.style.display = 'none';
+                noResults.style.display = 'block';
+                noResults.querySelector('p').innerText = 'حدث خطأ أثناء البحث';
+            }
+        }
+
+        // تهيئة الصفحة
+        renderHistory();
+    </script>
 </body>
 </html>

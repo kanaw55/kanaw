@@ -126,27 +126,32 @@ def index():
     else:
         videos = Video.query.join(User).filter(User.is_private == False).all()
         liked_vids = []
-        
     random.shuffle(videos)
     return render_template('index.html', videos=videos, liked_videos=liked_vids)
 
-# --- مسار البحث الجديد ---
 @app.route('/search')
-def search():
-    query = request.args.get('q', '').strip()
-    users = []
-    videos = []
-    
-    if query:
-        # البحث عن مستخدمين (تطابق جزئي)
-        users = User.query.filter(User.username.ilike(f'%{query}%')).all()
-        # البحث عن فيديوهات (تطابق جزئي في الوصف)
-        videos = Video.query.join(User).filter(
-            (Video.caption.ilike(f'%{query}%')) & 
-            ((User.is_private == False) | (Video.user_id == current_user.id) if current_user.is_authenticated else User.is_private == False)
-        ).all()
+def search_page():
+    return render_template('search.html')
 
-    return render_template('search.html', query=query, users=users, videos=videos)
+@app.route('/api/search')
+def api_search():
+    query = request.args.get('q', '').strip()
+    if not query:
+        return jsonify({'users': [], 'videos': []})
+        
+    users = User.query.filter(User.username.ilike(f'%{query}%')).limit(5).all()
+    users_data = [{'username': u.username, 'profile_pic': u.profile_pic, 'followers': u.followers.count()} for u in users]
+    
+    videos_query = Video.query.join(User).filter(Video.caption.ilike(f'%{query}%'))
+    if current_user.is_authenticated:
+        videos_query = videos_query.filter((User.is_private == False) | (Video.user_id == current_user.id))
+    else:
+        videos_query = videos_query.filter(User.is_private == False)
+        
+    videos = videos_query.limit(12).all()
+    videos_data = [{'id': v.id, 'filename': v.filename, 'views': v.views, 'thumbnail': v.filename.replace('.mp4', '.jpg')} for v in videos]
+    
+    return jsonify({'users': users_data, 'videos': videos_data})
 
 @app.route('/api/view/<int:video_id>', methods=['POST'])
 def api_view(video_id):
