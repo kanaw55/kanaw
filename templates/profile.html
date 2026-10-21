@@ -149,7 +149,7 @@
         <!-- شبكات الفيديوهات الحقيقية (مخفية حتى يتم التحميل) -->
         <div class="grid" id="grid-videos" style="display:none;">
             {% for video in videos %}
-            <div class="vid-box" onclick="window.location.href='/?video_id={{ video.id }}'">
+            <div class="vid-box" onclick="openVideoModal('{{ video.filename }}')">
                 <img src="{{ video.filename|replace('.mp4', '.jpg') }}" onerror="this.src='https://via.placeholder.com/150/333/fff?text=Video'">
                 <div class="views-overlay"><i class="fa-solid fa-play"></i> {{ video.views }}</div>
                 {% if current_user.is_authenticated and current_user.id == user.id %}
@@ -160,7 +160,7 @@
         </div>
         <div class="grid" id="grid-liked">
             {% for video in liked_vids %}
-            <div class="vid-box" onclick="window.location.href='/?video_id={{ video.id }}'">
+            <div class="vid-box" onclick="openVideoModal('{{ video.filename }}')">
                 <img src="{{ video.filename|replace('.mp4', '.jpg') }}" onerror="this.src='https://via.placeholder.com/150/333/fff?text=Video'">
                 <div class="views-overlay"><i class="fa-solid fa-play"></i> {{ video.views }}</div>
             </div>
@@ -168,7 +168,7 @@
         </div>
         <div class="grid" id="grid-saved">
             {% for video in saved_vids %}
-            <div class="vid-box" onclick="window.location.href='/?video_id={{ video.id }}'">
+            <div class="vid-box" onclick="openVideoModal('{{ video.filename }}')">
                 <img src="{{ video.filename|replace('.mp4', '.jpg') }}" onerror="this.src='https://via.placeholder.com/150/333/fff?text=Video'">
                 <div class="views-overlay"><i class="fa-solid fa-play"></i> {{ video.views }}</div>
             </div>
@@ -278,6 +278,31 @@
             }).then(res => res.json()).then(data => {
                 if(data.success) window.location.reload();
             });
+        }
+    </script>
+    
+
+    <!-- نافذة عرض الفيديو (مثل إنستغرام) -->
+    <div id="instaVideoModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:99999; justify-content:center; align-items:center; flex-direction:column;">
+        <button onclick="closeVideoModal()" style="position:absolute; top:20px; right:20px; background:none; border:none; color:white; font-size:35px; cursor:pointer; z-index:100000;"><i class="fa-solid fa-xmark"></i></button>
+        <video id="instaVideoPlayer" src="" controls autoplay loop playsinline style="width:100%; max-height:90vh; object-fit:contain;"></video>
+    </div>
+    
+    <script>
+        function openVideoModal(videoUrl) {
+            const modal = document.getElementById('instaVideoModal');
+            const player = document.getElementById('instaVideoPlayer');
+            player.src = videoUrl;
+            modal.style.display = 'flex';
+            player.play().catch(e => console.log('Autoplay blocked'));
+        }
+        
+        function closeVideoModal() {
+            const modal = document.getElementById('instaVideoModal');
+            const player = document.getElementById('instaVideoPlayer');
+            player.pause();
+            player.src = '';
+            modal.style.display = 'none';
         }
     </script>
     
