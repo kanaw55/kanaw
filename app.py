@@ -41,11 +41,9 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(512), nullable=False)
     profile_pic = db.Column(db.String(500), default=None)
     bio = db.Column(db.String(200), default="مرحباً! أنا أستخدم تطبيق Kanaw.")
-    bio_link = db.Column(db.String(100), default=None)
     is_private = db.Column(db.Boolean, default=False)
     is_verified = db.Column(db.Boolean, default=False)
     is_admin = db.Column(db.Boolean, default=False)
-    hide_likes = db.Column(db.Boolean, default=False)
     followed = db.relationship('User', secondary=followers, primaryjoin=(followers.c.follower_id == id), secondaryjoin=(followers.c.followed_id == id), backref=db.backref('followers', lazy='dynamic'), lazy='dynamic')
     liked_videos = db.relationship('Video', secondary=likes, backref=db.backref('liked_by', lazy='dynamic'))
     saved_videos = db.relationship('Video', secondary=saves, backref=db.backref('saved_by', lazy='dynamic'))
@@ -71,7 +69,6 @@ class Comment(db.Model):
     video_id = db.Column(db.Integer, db.ForeignKey('video.id'))
     parent_id = db.Column(db.Integer, db.ForeignKey('comment.id'), nullable=True)
     likes_count = db.Column(db.Integer, default=0)
-    is_pinned = db.Column(db.Boolean, default=False)
     user = db.relationship('User', backref='comments')
     replies = db.relationship('Comment', backref=db.backref('parent', remote_side=[id]), lazy='dynamic', cascade="all, delete-orphan")
     liked_by = db.relationship('User', secondary=comment_likes, backref='liked_comments')
@@ -150,20 +147,21 @@ def hashtag_page(tag):
 def index():
     feed_type = request.args.get('feed', 'foryou')
     blocked_ids = [u.id for u in current_user.blocked_users] if current_user.is_authenticated else []
-
     if current_user.is_authenticated:
         followed_ids = [u.id for u in current_user.followed]
-        if feed_type == 'following':
-            videos = Video.query.join(User).filter(Video.user_id.in_(followed_ids), ~Video.user_id.in_(blocked_ids)).order_by(db.func.random()).limit(30).all()
-        else:
-            videos = Video.query.join(User).filter((User.is_private == False) | (Video.user_id == current_user.id) | (Video.user_id.in_(followed_ids)), ~Video.user_id.in_(blocked_ids)).order_by(db.func.random()).limit(30).all()
+        videos = Video.query.join(User).filter((User.is_private == False) | (Video.user_id == current_user.id) | (Video.user_id.in_(followed_ids)), ~Video.user_id.in_(blocked_ids)).order_by(db.func.random()).limit(30).all()
         liked_vids = [v.id for v in current_user.liked_videos]
         saved_vids = [v.id for v in current_user.saved_videos]
     else:
         videos = Video.query.join(User).filter(User.is_private == False).order_by(db.func.random()).limit(30).all()
         liked_vids, saved_vids = [], []
-        
     return render_template('index.html', videos=videos, liked_videos=liked_vids, saved_videos=saved_vids, feed_type=feed_type)
+
+@app.route('/api/load_more')
+def load_more():
+    blocked_ids = [u.id for u in current_user.blocked_users] if current_user.is_authenticated else []
+    videos = Video.query.join(User).filter(User.is_private == False, ~Video.user_id.in_(blocked_ids)).order_by(db.func.random()).limit(30).all()
+    return render_template('_video.html', videos=videos, liked_videos=[])
 
 @app.route('/trending')
 def trending():
@@ -173,19 +171,22 @@ def trending():
 @app.route('/inbox')
 @login_required
 def inbox():
-    sent = db.session.query(Message.receiver_id).filter(Message.sender_id == current_user.id, Message.group_id == None)
-    received = db.session.query(Message.sender_id).filter(Message.receiver_id == current_user.id, Message.group_id == None)
-    user_ids = set([id[0] for id in sent.all()] + [id[0] for id in received.all()])
-    users = User.query.filter(User.id.in_(user_ids)).all()
-    groups = current_user.chat_groups
-    stories = Story.query.filter(Story.created_at >= datetime.utcnow() - timedelta(days=1)).order_by(Story.created_at.desc()).all()
-    return render_template('inbox.html', users=users, groups=groups, stories=stories)
+    try:
+        sent = db.session.query(Message.receiver_id).filter(Message.sender_id == current_user.id, Message.group_id == None)
+        received = db.session.query(Message.sender_id).filter(Message.receiver_id == current_user.id, Message.group_id == None)
+        user_ids = set([id[0] for id in sent.all()] + [id[0] for id in received.all()])
+        users = User.query.filter(User.id.in_(user_ids)).all()
+        groups = current_user.chat_groups
+        stories = Story.query.filter(Story.created_at >= datetime.utcnow() - timedelta(days=1)).order_by(Story.created_at.desc()).all()
+        return render_template('inbox.html', users=users, groups=groups, stories=stories)
+    except Exception as e:
+        print(f"Error in inbox: {e}")
+        return render_template('inbox.html', users=[], groups=[], stories=[])
 
 @app.route('/chat_group/<int:group_id>', methods=['GET', 'POST'])
 @login_required
 def chat_group(group_id):
     group = ChatGroup.query.get_or_404(group_id)
-    if current_user not in group.members: return "غير مصرح", 403
     if request.method == 'POST':
         content = request.form.get('content')
         if content:
@@ -231,7 +232,6 @@ def admin_delete_report(report_id):
     if not getattr(current_user, 'is_admin', False): return "غير مصرح", 403
     db.session.delete(Report.query.get_or_404(report_id))
     db.session.commit()
-    flash('تم تجاهل البلاغ')
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/delete_vid/<int:video_id>')
@@ -241,7 +241,6 @@ def admin_delete_video(video_id):
     Report.query.filter_by(video_id=video_id).delete()
     db.session.delete(Video.query.get_or_404(video_id))
     db.session.commit()
-    flash('تم حذف الفيديو المخالف')
     return redirect(url_for('admin_panel'))
 
 @app.route('/search')
@@ -255,10 +254,6 @@ def api_search():
     users = User.query.filter(User.username.ilike(f'%{query}%'), ~User.id.in_(blocked_ids)).limit(5).all()
     users_data = [{'username': u.username, 'profile_pic': u.profile_pic, 'followers': u.followers.count()} for u in users]
     videos_query = Video.query.join(User).filter(Video.caption.ilike(f'%{query}%'), ~Video.user_id.in_(blocked_ids))
-    if current_user.is_authenticated:
-        videos_query = videos_query.filter((User.is_private == False) | (Video.user_id == current_user.id))
-    else:
-        videos_query = videos_query.filter(User.is_private == False)
     videos = videos_query.limit(12).all()
     videos_data = [{'id': v.id, 'filename': v.filename, 'views': v.views, 'thumbnail': v.filename.replace('.mp4', '.jpg')} for v in videos]
     return jsonify({'users': users_data, 'videos': videos_data})
@@ -273,11 +268,8 @@ def api_view(video_id):
 def api_like(video_id):
     video = Video.query.get_or_404(video_id)
     if video.user_id == current_user.id: return jsonify({'success': False})
-    if current_user in video.liked_by:
-        video.liked_by.remove(current_user); video.likes_count -= 1; is_liked = False
-    else:
-        video.liked_by.append(current_user); video.likes_count += 1
-        db.session.add(Notification(user_id=video.user_id, sender_id=current_user.id, type='like')); is_liked = True
+    if current_user in video.liked_by: video.liked_by.remove(current_user); video.likes_count -= 1; is_liked = False
+    else: video.liked_by.append(current_user); video.likes_count += 1; db.session.add(Notification(user_id=video.user_id, sender_id=current_user.id, type='like')); is_liked = True
     db.session.commit()
     return jsonify({'success': True, 'likes': video.likes_count, 'is_liked': is_liked})
 
@@ -361,8 +353,7 @@ def get_followed_users():
 @login_required
 def api_delete_message(msg_id):
     msg = Message.query.get_or_404(msg_id)
-    if msg.sender_id == current_user.id:
-        db.session.delete(msg); db.session.commit(); return jsonify({'success': True})
+    if msg.sender_id == current_user.id: db.session.delete(msg); db.session.commit(); return jsonify({'success': True})
     return jsonify({'success': False}), 403
 
 @app.route('/api/message/react/<int:msg_id>', methods=['POST'])
@@ -386,12 +377,8 @@ def register():
             return redirect(url_for('register'))
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
-        if not username or not password:
-            flash('الرجاء إدخال الاسم وكلمة المرور')
-            return redirect(url_for('register'))
-        if User.query.filter_by(username=username).first():
-            flash('اسم المستخدم محجوز')
-            return redirect(url_for('register'))
+        if not username or not password: flash('الرجاء إدخال الاسم وكلمة المرور'); return redirect(url_for('register'))
+        if User.query.filter_by(username=username).first(): flash('اسم المستخدم محجوز'); return redirect(url_for('register'))
         new_user = User(username=username); new_user.set_password(password)
         db.session.add(new_user); db.session.commit(); login_user(new_user)
         resp = make_response(redirect(url_for('index'))); resp.set_cookie('accounts_created', str(accounts_created + 1), max_age=30*24*60*60)
@@ -403,10 +390,8 @@ def login():
     if current_user.is_authenticated: return redirect(url_for('index'))
     if request.method == 'POST':
         user = User.query.filter_by(username=request.form.get('username', '').strip()).first()
-        if user and user.check_password(request.form.get('password', '')):
-            login_user(user); return redirect(url_for('index'))
-        flash('اسم المستخدم أو كلمة المرور خاطئة')
-        return redirect(url_for('login'))
+        if user and user.check_password(request.form.get('password', '')): login_user(user); return redirect(url_for('index'))
+        flash('اسم المستخدم أو كلمة المرور خاطئة'); return redirect(url_for('login'))
     return render_template('login.html')
 
 @app.route('/logout')
@@ -427,8 +412,7 @@ def profile(username):
     is_blocked = current_user.is_authenticated and user in current_user.blocked_users
     if request.method == 'POST' and current_user.is_authenticated and current_user.id == user.id:
         file = request.files.get('profile_pic')
-        if file and file.filename != '':
-            user.profile_pic = cloudinary.uploader.upload(file, resource_type="image").get('secure_url')
+        if file and file.filename != '': user.profile_pic = cloudinary.uploader.upload(file, resource_type="image").get('secure_url')
         if request.form.get('bio') is not None: user.bio = request.form.get('bio')
         db.session.commit(); return redirect(url_for('profile', username=user.username))
     is_following = current_user.is_authenticated and current_user.followed.filter(followers.c.followed_id == user.id).count() > 0
@@ -454,25 +438,20 @@ def following_list(username):
 def toggle_follow(user_id):
     user = User.query.get_or_404(user_id)
     if user == current_user: return redirect(url_for('profile', username=user.username))
-    if current_user.followed.filter(followers.c.followed_id == user.id).count() > 0:
-        current_user.followed.remove(user)
+    if current_user.followed.filter(followers.c.followed_id == user.id).count() > 0: current_user.followed.remove(user)
     else:
         if user.is_private:
             if not FollowRequest.query.filter_by(sender_id=current_user.id, receiver_id=user.id).first():
                 db.session.add(FollowRequest(sender_id=current_user.id, receiver_id=user.id))
                 db.session.add(Notification(user_id=user.id, sender_id=current_user.id, type='follow_request'))
-        else:
-            current_user.followed.append(user)
-            db.session.add(Notification(user_id=user.id, sender_id=current_user.id, type='follow'))
-    db.session.commit()
-    return redirect(request.referrer or url_for('profile', username=user.username))
+        else: current_user.followed.append(user); db.session.add(Notification(user_id=user.id, sender_id=current_user.id, type='follow'))
+    db.session.commit(); return redirect(request.referrer or url_for('profile', username=user.username))
 
 @app.route('/accept_request/<int:req_id>')
 @login_required
 def accept_request(req_id):
     req = FollowRequest.query.get_or_404(req_id)
-    if req.receiver_id == current_user.id:
-        current_user.followers.append(req.sender); db.session.delete(req); db.session.commit()
+    if req.receiver_id == current_user.id: current_user.followers.append(req.sender); db.session.delete(req); db.session.commit()
     return redirect(url_for('notifications'))
 
 @app.route('/reject_request/<int:req_id>')
@@ -498,7 +477,7 @@ def upload():
 @login_required
 def delete_video(video_id):
     video = Video.query.get_or_404(video_id)
-    if video.user_id == current_user.id: db.session.delete(video); db.session.commit(); flash('تم حذف الفيديو')
+    if video.user_id == current_user.id: db.session.delete(video); db.session.commit()
     return redirect(request.referrer or url_for('index'))
 
 @app.route('/chat/<username>', methods=['GET', 'POST'])
@@ -522,18 +501,9 @@ def notifications():
     db.session.commit()
     return render_template('notifications.html', notifications=notifs, requests=FollowRequest.query.filter_by(receiver_id=current_user.id).all())
 
-@app.route('/change_password', methods=['POST'])
-@login_required
-def change_password():
-    if current_user.check_password(request.form.get('old_password')) and len(request.form.get('new_password', '')) >= 6:
-        current_user.set_password(request.form.get('new_password')); db.session.commit()
-        flash('تم تغيير كلمة المرور بنجاح!')
-    else: flash('بيانات غير صحيحة.')
-    return redirect(url_for('settings'))
-
 @app.route('/generate_fake_data_secret')
 def generate_fake_data():
-    pass # تم إزالة الشرط لتشغيل التوليد دائماً
+    if User.query.count() > 100: return "قاعدة البيانات مليئة بالفعل!"
     first_names = ["ahmed", "sara", "mohammed", "lina", "omar", "nour", "khaled", "yara", "tariq", "huda", "adam", "maya", "ali", "fatima", "hassan", "zainab", "yousef", "layla", "majed", "dina", "sami", "reem", "anas", "salma", "zaid", "rana", "faris", "noor", "kareem", "aya"]
     suffixes = ["gamer", "art", "vlogs", "music", "funny", "cooking", "sports", "tech", "travel", "lifestyle", "fitness", "beauty", "food", "comedy", "news", "photo", "diy", "gaming", "movies", "books", "cars", "fashion", "dance", "sing", "code", "life", "world", "star", "king", "queen"]
     sample_videos = ["https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4"]
@@ -543,7 +513,7 @@ def generate_fake_data():
     users_to_add = []
     for i in range(1000):
         name = f"{random.choice(first_names)}_{random.choice(suffixes)}{random.randint(100, 99999)}"
-        user = User(username=name, bio=f"مرحباً، أنا {name}! أشارككم محتواي هنا ✨", profile_pic=f"https://i.pravatar.cc/150?u={random.randint(1, 1000)}", is_verified=random.choice([True, False, False, False]))
+        user = User(username=name, bio=f"مرحباً، أنا {name}! أشارككم محتواي هنا ✨", profile_pic=f"https://i.pravatar.cc/150?u={random.randint(1, 1000)}")
         user.set_password("123456"); users_to_add.append(user)
     db.session.add_all(users_to_add); db.session.commit()
 
