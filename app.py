@@ -163,8 +163,7 @@ def load_more():
     videos = Video.query.join(User).filter(User.is_private == False, ~Video.user_id.in_(blocked_ids)).order_by(db.func.random()).limit(30).all()
     liked_vids = [v.id for v in current_user.liked_videos] if current_user.is_authenticated else []
     saved_vids = [v.id for v in current_user.saved_videos] if current_user.is_authenticated else []
-    if not videos:
-        return "" # إرجاع نص فارغ إذا لم توجد فيديوهات
+    if not videos: return ""
     return render_template('_video.html', videos=videos, liked_videos=liked_vids, saved_videos=saved_vids)
 
 @app.route('/trending')
@@ -183,8 +182,7 @@ def inbox():
         groups = current_user.chat_groups
         stories = Story.query.filter(Story.created_at >= datetime.utcnow() - timedelta(days=1)).order_by(Story.created_at.desc()).all()
         return render_template('inbox.html', users=users, groups=groups, stories=stories)
-    except Exception as e:
-        print(f"Error in inbox: {e}")
+    except:
         return render_template('inbox.html', users=[], groups=[], stories=[])
 
 @app.route('/chat_group/<int:group_id>', methods=['GET', 'POST'])
@@ -507,38 +505,47 @@ def notifications():
 
 @app.route('/generate_fake_data_secret')
 def generate_fake_data():
-    if User.query.count() > 100: return "قاعدة البيانات مليئة بالفعل!"
-    first_names = ["ahmed", "sara", "mohammed", "lina", "omar", "nour", "khaled", "yara", "tariq", "huda", "adam", "maya", "ali", "fatima", "hassan", "zainab", "yousef", "layla", "majed", "dina", "sami", "reem", "anas", "salma", "zaid", "rana", "faris", "noor", "kareem", "aya"]
-    suffixes = ["gamer", "art", "vlogs", "music", "funny", "cooking", "sports", "tech", "travel", "lifestyle", "fitness", "beauty", "food", "comedy", "news", "photo", "diy", "gaming", "movies", "books", "cars", "fashion", "dance", "sing", "code", "life", "world", "star", "king", "queen"]
-    sample_videos = ["https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4"]
-    captions = ["شوفوا هذا الفيديو الرهيب! 🔥", "أفضل لحظة في حياتي ❤️", "لا تفوتوا هذا المشهد 😂", "تجربة جديدة وممتعة ✨", "استمتعوا بالمشاهدة 🎬", "ما رأيكم بهذا؟ 👀", "محتوى حصري لكم 💎", "شاركوني رأيكم بالتعليقات 👇", "كل يوم فيديو جديد 🚀", "أتمنى يعجبكم ❤️", "لا تنسوا المتابعة ✨", "جودة عالية 4K 🎥", "من تصويري الخاص 📸", "تحياتي لكم من فلسطين 🇵🇸", "Happy Day ✌️", "تحدي جديد 🔥"]
-    comments_pool = ["فيديو رائع جداً! 🔥", "استمر يا بطل 👏", "أفضل محتوى شفته اليوم ❤️", "متابعك من فلسطين 🇵🇸", "ههههههه مضحك كثير 😂", "ما شاء الله، إبداع!", "كيف سويت هذا؟", "أول مرة أشوف زي هيك", "جودة عالية جداً", "أتمنى لك التوفيق", "أنت الأفضل!", "أضفتك للمفضلة ⭐", "منتظر جديدك", "شكراً على المحتوى", "الله يعطيك العافية"]
-    
-    users_to_add = []
-    for i in range(20):
-        name = f"{random.choice(first_names)}_{random.choice(suffixes)}{random.randint(100, 99999)}"
-        user = User(username=name, bio=f"مرحباً، أنا {name}! أشارككم محتواي هنا ✨", profile_pic=f"https://i.pravatar.cc/150?u={random.randint(1, 1000)}")
-        user.set_password("123456"); users_to_add.append(user)
-    db.session.add_all(users_to_add); db.session.commit()
+    try:
+        if User.query.count() > 100: return "قاعدة البيانات مليئة بالفعل!"
+        
+        first_names = ["ahmed", "sara", "mohammed", "lina", "omar", "nour", "khaled", "yara", "tariq", "huda", "adam", "maya", "ali", "fatima", "hassan", "zainab", "yousef", "layla", "majed", "dina", "sami", "reem", "anas", "salma", "zaid", "rana", "faris", "noor", "kareem", "aya"]
+        suffixes = ["gamer", "art", "vlogs", "music", "funny", "cooking", "sports", "tech", "travel", "lifestyle", "fitness", "beauty", "food", "comedy", "news", "photo", "diy", "gaming", "movies", "books", "cars", "fashion", "dance", "sing", "code", "life", "world", "star", "king", "queen"]
+        sample_videos = ["https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4"]
+        captions = ["شوفوا هذا الفيديو الرهيب! 🔥", "أفضل لحظة في حياتي ❤️", "لا تفوتوا هذا المشهد 😂", "تجربة جديدة وممتعة ✨", "استمتعوا بالمشاهدة 🎬", "ما رأيكم بهذا؟ 👀", "محتوى حصري لكم 💎", "شاركوني رأيكم بالتعليقات 👇", "كل يوم فيديو جديد 🚀", "أتمنى يعجبكم ❤️", "لا تنسوا المتابعة ✨", "جودة عالية 4K 🎥", "من تصويري الخاص 📸", "تحياتي لكم من فلسطين 🇵🇸", "Happy Day ✌️", "تحدي جديد 🔥"]
+        comments_pool = ["فيديو رائع جداً! 🔥", "استمر يا بطل 👏", "أفضل محتوى شفته اليوم ❤️", "متابعك من فلسطين 🇵🇸", "ههههههه مضحك كثير 😂", "ما شاء الله، إبداع!", "كيف سويت هذا؟", "أول مرة أشوف زي هيك", "جودة عالية جداً", "أتمنى لك التوفيق", "أنت الأفضل!", "أضفتك للمفضلة ⭐", "منتظر جديدك", "شكراً على المحتوى", "الله يعطيك العافية"]
+        
+        users_to_add = []
+        for i in range(20):
+            name = f"{random.choice(first_names)}_{random.choice(suffixes)}{random.randint(1000, 99999)}"
+            user = User(username=name, bio=f"مرحباً، أنا {name}! أشارككم محتواي هنا ✨", profile_pic=f"https://i.pravatar.cc/150?u={random.randint(1, 1000)}")
+            user.set_password("123456"); users_to_add.append(user)
+        
+        db.session.bulk_save_objects(users_to_add)
+        db.session.commit()
 
-    all_users = User.query.all()
-    videos_to_add = []
-    for user in all_users:
-        for _ in range(1):
-            v = Video(filename=random.choice(sample_videos), caption=random.choice(captions), user_id=user.id, views=random.randint(100, 50000), likes_count=random.randint(10, 5000))
-            videos_to_add.append(v)
-    db.session.add_all(videos_to_add); db.session.commit()
+        all_users = User.query.all()
+        videos_to_add = []
+        for user in all_users:
+            for _ in range(3): # 3 videos per user
+                v = Video(filename=random.choice(sample_videos), caption=random.choice(captions), user_id=user.id, views=random.randint(100, 50000), likes_count=random.randint(10, 5000))
+                videos_to_add.append(v)
+        db.session.bulk_save_objects(videos_to_add)
+        db.session.commit()
 
-    all_videos = Video.query.all()
-    comments_to_add = []
-    for video in all_videos:
-        for _ in range(random.randint(1, 3)):
-            commenter = random.choice(all_users)
-            if commenter.id != video.user_id:
-                c = Comment(content=random.choice(comments_pool), user_id=commenter.id, video_id=video.id, likes_count=random.randint(0, 100))
-                comments_to_add.append(c)
-    db.session.add_all(comments_to_add); db.session.commit()
-    return "🎉 تمت العملية بنجاح! كلمة المرور: 123456"
+        all_videos = Video.query.all()
+        comments_to_add = []
+        for video in all_videos:
+            for _ in range(random.randint(1, 3)):
+                commenter = random.choice(all_users)
+                if commenter.id != video.user_id:
+                    c = Comment(content=random.choice(comments_pool), user_id=commenter.id, video_id=video.id, likes_count=random.randint(0, 100))
+                    comments_to_add.append(c)
+        db.session.bulk_save_objects(comments_to_add)
+        db.session.commit()
+        return "🎉 تمت العملية بنجاح! كلمة المرور: 123456"
+    except Exception as e:
+        db.session.rollback()
+        return f"حدث خطأ: {str(e)}"
 
 with app.app_context():
     db.create_all()
