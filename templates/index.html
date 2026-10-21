@@ -227,9 +227,20 @@
         function promptCaptionAndUpload(input) {
             if (!navigator.onLine) return alert('أنت غير متصل بالإنترنت');
             if (!input.files || !input.files[0]) return;
+            
+            const file = input.files[0];
+            const maxSize = 10 * 1024 * 1024; // 10 ميغابايت
+            
+            if (file.size > maxSize) {
+                const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+                alert(`❌ حجم الفيديو (${sizeMB} ميغابايت) أكبر من الحد الأقصى المسموح (10 ميغابايت).\n\nيرجى اختيار فيديو أقصر.`);
+                input.value = '';
+                return;
+            }
+            
             const caption = prompt("أدخل وصفاً للفيديو (Caption):", "");
             if (caption === null) { input.value = ''; return; } 
-            uploadDirectly(input.files[0], caption);
+            uploadDirectly(file, caption);
         }
 
         async function uploadDirectly(file, caption) {

@@ -289,6 +289,8 @@ def api_save(video_id):
 def upload_direct():
     file = request.files.get('video'); caption = request.form.get('caption', '')
     if file and file.filename != '':
+        if is_video_too_large(file):
+            return jsonify({'success': False, 'error': 'حجم الفيديو أكبر من 10 ميغابايت! يرجى اختيار فيديو أقصر.'}), 400
         try:
             upload_result = cloudinary.uploader.upload(file, resource_type="video")
             video_url = upload_result.get('secure_url')
@@ -463,12 +465,23 @@ def reject_request(req_id):
     if req.receiver_id == current_user.id: db.session.delete(req); db.session.commit()
     return redirect(url_for('notifications'))
 
+
+def is_video_too_large(file):
+    file.seek(0, os.SEEK_END)
+    size = file.tell()
+    file.seek(0)  # إعادة المؤشر للبداية
+    return size > 10 * 1024 * 1024  # 10 ميغابايت
+
 @app.route('/upload', methods=['GET', 'POST'])
+
 @login_required
 def upload():
     if request.method == 'POST':
         file = request.files.get('video'); caption = request.form.get('caption')
         if file and file.filename != '':
+            if is_video_too_large(file):
+                flash('حجم الفيديو أكبر من 10 ميغابايت! يرجى اختيار فيديو أقصر.')
+                return redirect(url_for('upload'))
             video_url = cloudinary.uploader.upload(file, resource_type="video").get('secure_url')
             if '/video/upload/' in video_url: video_url = video_url.replace('/video/upload/', '/video/upload/q_auto,f_auto/')
             db.session.add(Video(filename=video_url, caption=caption, user=current_user))
@@ -510,7 +523,7 @@ def generate_fake_data():
         
         first_names = ["ahmed", "sara", "mohammed", "lina", "omar", "nour", "khaled", "yara", "tariq", "huda", "adam", "maya", "ali", "fatima", "hassan", "zainab", "yousef", "layla", "majed", "dina", "sami", "reem", "anas", "salma", "zaid", "rana", "faris", "noor", "kareem", "aya"]
         suffixes = ["gamer", "art", "vlogs", "music", "funny", "cooking", "sports", "tech", "travel", "lifestyle", "fitness", "beauty", "food", "comedy", "news", "photo", "diy", "gaming", "movies", "books", "cars", "fashion", "dance", "sing", "code", "life", "world", "star", "king", "queen"]
-        sample_videos = ["https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4"]
+        sample_videos = ["https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4", "https://test-videos.co.uk/vids/sintel/mp4/h264/360/Sintel_360_10s_1MB.mp4", "https://test-videos.co.uk/vids/jellyfish/mp4/h264/360/Jellyfish_360_10s_1MB.mp4"]
         captions = ["شوفوا هذا الفيديو الرهيب! 🔥", "أفضل لحظة في حياتي ❤️", "لا تفوتوا هذا المشهد 😂", "تجربة جديدة وممتعة ✨", "استمتعوا بالمشاهدة 🎬", "ما رأيكم بهذا؟ 👀", "محتوى حصري لكم 💎", "شاركوني رأيكم بالتعليقات 👇", "كل يوم فيديو جديد 🚀", "أتمنى يعجبكم ❤️", "لا تنسوا المتابعة ✨", "جودة عالية 4K 🎥", "من تصويري الخاص 📸", "تحياتي لكم من فلسطين 🇵🇸", "Happy Day ✌️", "تحدي جديد 🔥"]
         comments_pool = ["فيديو رائع جداً! 🔥", "استمر يا بطل 👏", "أفضل محتوى شفته اليوم ❤️", "متابعك من فلسطين 🇵🇸", "ههههههه مضحك كثير 😂", "ما شاء الله، إبداع!", "كيف سويت هذا؟", "أول مرة أشوف زي هيك", "جودة عالية جداً", "أتمنى لك التوفيق", "أنت الأفضل!", "أضفتك للمفضلة ⭐", "منتظر جديدك", "شكراً على المحتوى", "الله يعطيك العافية"]
         
