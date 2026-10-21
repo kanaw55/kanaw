@@ -122,11 +122,11 @@
     <div class="bottom-nav">
         <a href="/" class="active"><i class="fa-solid fa-house"></i> الرئيسية</a>
         <a href="/trending"><i class="fa-solid fa-fire" style="color:#f5c518;"></i> الترند</a>
-        <label for="directUpload" style="color:#888; display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; font-size:12px;"><i class="fa-solid fa-circle-plus" style="font-size:24px;"></i></label>
+        <button onclick="document.getElementById('directUpload').click()" style="background:none; border:none; color:#888; display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; font-size:12px;"><i class="fa-solid fa-circle-plus" style="font-size:24px;"></i></button>
         <a href="/inbox"><i class="fa-solid fa-envelope"></i> الرسائل</a>
         <a href="{% if current_user.is_authenticated %}/profile/{{ current_user.username }}{% else %}/login{% endif %}"><i class="fa-solid fa-user"></i> حسابي</a>
     </div>
-    <input type="file" id="directUpload" accept="video/*" style="display: none;" onchange="promptCaptionAndUpload(this)">
+    <input type="file" id="directUpload" accept="video/*" style="opacity: 0; position: absolute; z-index: -1; width: 1px; height: 1px;" onchange="promptCaptionAndUpload(this)">
 
     <script>
         const isAuthenticated = {{ 'true' if current_user.is_authenticated else 'false' }};

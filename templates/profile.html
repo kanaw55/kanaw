@@ -74,11 +74,7 @@
         <h3>تعديل الملف الشخصي</h3>
         <form method="POST" enctype="multipart/form-data">
             <div style="text-align: center; margin-bottom: 15px;">
-                <label for="picInput" style="cursor: pointer;">
-                    {% if user.profile_pic %}<img src="{{ user.profile_pic }}" class="pic-preview" id="picPreview">
-                    {% else %}<div class="pic-preview" style="display:flex; justify-content:center; align-items:center; font-size:30px;" id="picPreviewDiv">👤</div>{% endif %}
-                    <span style="display: block; color: #007bff; font-size: 13px; margin-top: 5px;">تغيير الصورة</span>
-                </label>
+                <button type="button" onclick="document.getElementById('picInput').click()" class="edit-avatar-btn" style="border:none; cursor:pointer;"><i class="fa-solid fa-camera"></i> تغيير الصورة</button>
                 <input type="file" name="profile_pic" id="picInput" accept="image/*">
             </div>
             <label>الاسم (لا يمكن تغييره)</label>
