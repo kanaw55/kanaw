@@ -6,28 +6,33 @@
     <title>صفحة {{ user.username }}</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { font-family: sans-serif; background: #111; color: #fff; margin: 0; text-align: center; padding-bottom: 80px; }
-        .header { background: #222; padding: 30px 20px 20px; border-bottom: 1px solid #333; position: relative; }
+        body { font-family: sans-serif; background: #111; color: #fff; margin: 0; text-align: center; padding-bottom: 60px; }
+        .header { background: #111; padding: 30px 20px 10px; position: relative; }
         .settings-btn { position: absolute; top: 20px; left: 20px; color: white; font-size: 22px; text-decoration: none; }
         .avatar-container { width: 100px; height: 100px; background: #333; border-radius: 50%; margin: 0 auto 15px; display: flex; justify-content: center; align-items: center; font-size: 50px; border: 3px solid #fe2c55; overflow: hidden; }
         .avatar-container img { width: 100%; height: 100%; object-fit: cover; }
-        .edit-avatar-btn { background: #007bff; color: white; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 12px; margin-top: 10px; display:inline-block;}
+        .edit-avatar-btn { background: #333; color: white; padding: 5px 15px; border-radius: 5px; cursor: pointer; font-size: 12px; margin-top: 10px; display:inline-block; font-weight: bold;}
         input[type="file"] { display: none; }
         
-        /* تعديل المسافات لتتسع لـ 4 مربعات */
-        .stats { display: flex; justify-content: center; gap: 12px; margin-top: 20px; }
-        .stat-box h3 { margin: 0; color: #fe2c55; font-size: 18px; }
-        .stat-box p { margin: 5px 0 0; font-size: 11px; color: #aaa; }
+        .stats { display: flex; justify-content: center; gap: 25px; margin-top: 20px; }
+        .stat-box { text-decoration: none; color: white; cursor: pointer;}
+        .stat-box h3 { margin: 0; font-size: 18px; font-weight: bold;}
+        .stat-box p { margin: 5px 0 0; font-size: 13px; color: #aaa; }
         
         .btn { color: white; text-decoration: none; padding: 8px 20px; border-radius: 5px; display: inline-block; margin-top: 15px; font-weight: bold; margin-left: 5px; margin-right: 5px; border: none; cursor: pointer;}
         
-        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 2px; }
+        .tabs { display: flex; border-bottom: 1px solid #222; margin-top: 20px; }
+        .tab { flex: 1; padding: 15px; cursor: pointer; color: #888; font-size: 16px; font-weight: bold; border-bottom: 2px solid transparent; }
+        .tab.active { color: #fff; border-bottom: 2px solid #fe2c55; }
+        
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 2px; display: none;}
+        .grid.active { display: grid; }
         .vid-box { background: #222; aspect-ratio: 9/16; position: relative; overflow: hidden; cursor: pointer;}
         .vid-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .views-overlay { position: absolute; bottom: 5px; left: 5px; font-size: 12px; font-weight: bold; text-shadow: 1px 1px 3px black; display: flex; align-items: center; gap: 4px;}
         .delete-btn-overlay { position: absolute; top: 5px; right: 5px; background: rgba(220, 53, 69, 0.8); color: white; padding: 5px 8px; border-radius: 5px; text-decoration: none; font-size: 14px; z-index: 10;}
         
-        .private-screen { padding: 50px 20px; background: #1a1a1a; border-radius: 10px; margin: 20px auto; max-width: 400px; }
+        .empty-msg { text-align: center; color: #888; padding: 30px; font-size: 14px; display: none; }
         
         .bottom-nav { position: fixed; bottom: 0; width: 100%; height: 60px; background: #000; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #222; z-index: 9999; padding-bottom: env(safe-area-inset-bottom); }
         .bottom-nav a { color: #888; text-decoration: none; font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
@@ -50,55 +55,79 @@
         {% if current_user.is_authenticated and current_user.id == user.id %}
             <form method="POST" enctype="multipart/form-data">
                 <input type="file" name="profile_pic" id="picInput" accept="image/*" onchange="this.form.submit()">
-                <label for="picInput" class="edit-avatar-btn"><i class="fa-solid fa-camera"></i> تغيير الصورة</label>
+                <label for="picInput" class="edit-avatar-btn"><i class="fa-solid fa-pen"></i> تعديل الملف الشخصي</label>
             </form>
         {% endif %}
 
-        <!-- تمت إضافة عدد المتابَعين هنا -->
         <div class="stats">
-            <div class="stat-box"><h3>{{ videos|length }}</h3><p>فيديو</p></div>
-            <div class="stat-box"><h3>{{ followers_count }}</h3><p>متابع</p></div>
-            <div class="stat-box"><h3>{{ following_count }}</h3><p>يتابع</p></div>
+            <a href="/profile/{{ user.username }}/following" class="stat-box"><h3>{{ following_count }}</h3><p>يتابع</p></a>
+            <a href="/profile/{{ user.username }}/followers" class="stat-box"><h3>{{ followers_count }}</h3><p>متابع</p></a>
             <div class="stat-box"><h3>{{ total_likes }}</h3><p>إعجاب</p></div>
         </div>
 
         <div style="margin-top: 15px;">
             {% if current_user.is_authenticated and current_user.id != user.id %}
-                <a href="/toggle_follow/{{ user.id }}" class="btn" style="background:{% if is_following %}#555{% elif has_requested %}#ff9800{% else %}#fe2c55{% endif %};">
-                    {% if is_following %} إلغاء المتابعة {% elif has_requested %} تم إرسال الطلب ⏳ {% else %} متابعة {% endif %}
+                <a href="/toggle_follow/{{ user.id }}" class="btn" style="background:{% if is_following %}#333{% elif has_requested %}#ff9800{% else %}#fe2c55{% endif %};">
+                    {% if is_following %} <i class="fa-solid fa-user-check"></i> متابَع {% elif has_requested %} ⏳ معلق {% else %} <i class="fa-solid fa-user-plus"></i> متابعة {% endif %}
                 </a>
-                <a href="/chat/{{ user.username }}" class="btn" style="background:#333;"><i class="fa-solid fa-envelope"></i> رسالة</a>
+                <a href="/chat/{{ user.username }}" class="btn" style="background:#333;"><i class="fa-solid fa-envelope"></i></a>
+            {% endif %}
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('videos')"><i class="fa-solid fa-table-cells"></i> الفيديوهات</div>
+            {% if can_view %}
+            <div class="tab" onclick="switchTab('liked')"><i class="fa-solid fa-heart"></i> معجب بها</div>
             {% endif %}
         </div>
     </div>
 
     {% if not can_view %}
-        <div class="private-screen">
+        <div class="empty-msg" style="display:block;">
             <h2>🔒 هذا الحساب خاص</h2>
             <p>قم بمتابعة هذا الشخص لتتمكن من رؤية فيديوهاته.</p>
         </div>
     {% else %}
-        <div class="grid">
+        <div class="grid active" id="grid-videos">
             {% for video in videos %}
             <div class="vid-box" onclick="window.location.href='/'">
-                <img src="{{ video.filename|replace('.mp4', '.jpg') }}" alt="Video" onerror="this.src='https://via.placeholder.com/150/333/fff?text=Video'">
+                <img src="{{ video.filename|replace('.mp4', '.jpg') }}" onerror="this.src='https://via.placeholder.com/150/333/fff?text=Video'">
                 <div class="views-overlay"><i class="fa-solid fa-play"></i> {{ video.views }}</div>
-                
                 {% if current_user.is_authenticated and current_user.id == user.id %}
-                    <a href="/delete_video/{{ video.id }}" class="delete-btn-overlay" onclick="event.stopPropagation(); return confirm('هل أنت متأكد من حذف هذا الفيديو؟')"><i class="fa-solid fa-trash"></i></a>
+                    <a href="/delete_video/{{ video.id }}" class="delete-btn-overlay" onclick="event.stopPropagation(); return confirm('حذف الفيديو؟')"><i class="fa-solid fa-trash"></i></a>
                 {% endif %}
             </div>
-            {% else %}
-            <p style="grid-column: span 3; margin-top: 20px;">لا توجد فيديوهات هنا بعد.</p>
+            {% endfor %}
+        </div>
+        
+        <div class="grid" id="grid-liked">
+            {% for video in liked_vids %}
+            <div class="vid-box" onclick="window.location.href='/'">
+                <img src="{{ video.filename|replace('.mp4', '.jpg') }}" onerror="this.src='https://via.placeholder.com/150/333/fff?text=Video'">
+                <div class="views-overlay"><i class="fa-solid fa-play"></i> {{ video.views }}</div>
+            </div>
             {% endfor %}
         </div>
     {% endif %}
 
     <div class="bottom-nav">
         <a href="/"><i class="fa-solid fa-house"></i> الرئيسية</a>
+        <a href="/search"><i class="fa-solid fa-magnifying-glass"></i> بحث</a>
         <a href="{% if current_user.is_authenticated %}/upload{% else %}/login{% endif %}"><i class="fa-solid fa-circle-plus" style="font-size: 24px;"></i></a>
         <a href="{% if current_user.is_authenticated %}/inbox{% else %}/login{% endif %}"><i class="fa-solid fa-envelope"></i> الرسائل</a>
         <a href="{% if current_user.is_authenticated %}/profile/{{ current_user.username }}{% else %}/login{% endif %}" class="active"><i class="fa-solid fa-user"></i> حسابي</a>
     </div>
+
+    <script>
+        function switchTab(tabName) {
+            // إخفاء كل الشبكات وإزالة التفعيل من التبويبات
+            document.querySelectorAll('.grid').forEach(g => g.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            
+            // إظهار الشبكة المطلوبة وتفعيل التبويب
+            document.getElementById('grid-' + tabName).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+    </script>
 </body>
 </html>

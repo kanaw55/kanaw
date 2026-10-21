@@ -301,10 +301,23 @@ def profile(username):
         can_view = True
 
     videos = Video.query.filter_by(user_id=user.id).order_by(Video.id.desc()).all() if can_view else []
+    liked_vids = Video.query.join(likes).filter(likes.c.user_id == user.id).order_by(Video.id.desc()).all() if can_view else []
+    
     total_likes = sum(v.likes_count for v in videos) if can_view else 0
     followers_count = user.followers.count()
     following_count = user.followed.count()
-    return render_template('profile.html', user=user, videos=videos, total_likes=total_likes, is_following=is_following, has_requested=has_requested, can_view=can_view, followers_count=followers_count, following_count=following_count)
+    return render_template('profile.html', user=user, videos=videos, liked_vids=liked_vids, total_likes=total_likes, is_following=is_following, has_requested=has_requested, can_view=can_view, followers_count=followers_count, following_count=following_count)
+
+# مسارات المتابعين
+@app.route('/profile/<username>/followers')
+def followers_list(username):
+    user = User.query.filter_by(username=username).first_or_404()
+    return render_template('follow_list.html', title="المتابعين", users=user.followers.all(), target_user=user)
+
+@app.route('/profile/<username>/following')
+def following_list(username):
+    user = User.query.filter_by(username=username).first_or_404()
+    return render_template('follow_list.html', title="يتابع", users=user.followed.all(), target_user=user)
 
 @app.route('/toggle_follow/<int:user_id>')
 @login_required
@@ -324,7 +337,7 @@ def toggle_follow(user_id):
             current_user.followed.append(user)
             db.session.add(Notification(user_id=user.id, sender_id=current_user.id, type='follow'))
             db.session.commit()
-    return redirect(url_for('profile', username=user.username))
+    return redirect(request.referrer or url_for('profile', username=user.username))
 
 @app.route('/accept_request/<int:req_id>')
 @login_required
