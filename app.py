@@ -4,6 +4,7 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import os
+import uuid
 import random
 import re
 import cloudinary
@@ -90,12 +91,21 @@ class Story(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user = db.relationship('User', backref='stories')
 
+
+group_admin = db.Table('group_admin',
+    db.Column('group_id', db.Integer, db.ForeignKey('chat_group.id'), primary_key=True),
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True)
+)
+
 class ChatGroup(db.Model):
+
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     creator_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     members = db.relationship('User', secondary=group_member, backref='chat_groups')
+    admins = db.relationship('User', secondary=group_admin, backref='admin_groups')
+    invite_code = db.Column(db.String(20), unique=True, default=None)
 
 class Message(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -195,7 +205,64 @@ def inbox():
     except:
         return render_template('inbox.html', users=[], groups=[], stories=[])
 
+
+@app.route('/group_info/<int:group_id>')
+@login_required
+def group_info(group_id):
+    group = ChatGroup.query.get_or_404(group_id)
+    if current_user not in group.members: return "غير مصرح", 403
+    if not group.invite_code:
+        group.invite_code = str(uuid.uuid4())[:8]
+        db.session.commit()
+    return render_template('group_info.html', group=group)
+
+@app.route('/join_group/<string:code>')
+@login_required
+def join_group(code):
+    group = ChatGroup.query.filter_by(invite_code=code).first()
+    if group:
+        if current_user not in group.members:
+            group.members.append(current_user)
+            db.session.commit()
+        return redirect(url_for('chat_group', group_id=group.id))
+    return "الرابط غير صالح أو المجموعة غير موجودة", 404
+
+@app.route('/group/<int:group_id>/make_admin/<int:user_id>', methods=['POST'])
+@login_required
+def make_admin(group_id, user_id):
+    group = ChatGroup.query.get_or_404(group_id)
+    if current_user.id == group.creator_id: # فقط المالك
+        user = User.query.get(user_id)
+        if user and user not in group.admins:
+            group.admins.append(user)
+            db.session.commit()
+    return redirect(url_for('group_info', group_id=group_id))
+
+@app.route('/group/<int:group_id>/remove_admin/<int:user_id>', methods=['POST'])
+@login_required
+def remove_admin(group_id, user_id):
+    group = ChatGroup.query.get_or_404(group_id)
+    if current_user.id == group.creator_id:
+        user = User.query.get(user_id)
+        if user and user in group.admins and user.id != group.creator_id:
+            group.admins.remove(user)
+            db.session.commit()
+    return redirect(url_for('group_info', group_id=group_id))
+
+@app.route('/group/<int:group_id>/kick/<int:user_id>', methods=['POST'])
+@login_required
+def kick_member(group_id, user_id):
+    group = ChatGroup.query.get_or_404(group_id)
+    if current_user in group.admins:
+        user = User.query.get(user_id)
+        if user and user in group.members and user.id != group.creator_id:
+            group.members.remove(user)
+            if user in group.admins: group.admins.remove(user)
+            db.session.commit()
+    return redirect(url_for('group_info', group_id=group_id))
+
 @app.route('/chat_group/<int:group_id>', methods=['GET', 'POST'])
+
 @login_required
 def chat_group(group_id):
     group = ChatGroup.query.get_or_404(group_id)
@@ -224,8 +291,9 @@ def add_story():
 def create_group():
     data = request.get_json()
     if data.get('name'):
-        group = ChatGroup(name=data.get('name'), creator_id=current_user.id)
+        group = ChatGroup(name=data.get('name'), creator_id=current_user.id, invite_code=str(uuid.uuid4())[:8])
         group.members.append(current_user)
+        group.admins.append(current_user) # المالك يكون مشرفاً
         db.session.add(group)
         db.session.commit()
         return jsonify({'success': True, 'group_id': group.id})

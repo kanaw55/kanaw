@@ -25,7 +25,11 @@
     <div class="header">
         <a href="/inbox"><i class="fa-solid fa-arrow-right"></i></a>
         <h3 style="margin: 0; flex:1; text-align:center;">
-            {% if group %} {{ group.name }} {% else %} @{{ other_user.username }} {% endif %}
+            {% if group %} 
+            <a href="/group_info/{{ group.id }}" style="color:white; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:10px;">
+                {{ group.name }} <i class="fa-solid fa-circle-info" style="font-size:16px; color:#aaa;"></i>
+            </a>
+        {% else %} @{{ other_user.username }} {% endif %}
         </h3>
     </div>
 
