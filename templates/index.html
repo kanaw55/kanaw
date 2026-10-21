@@ -143,7 +143,7 @@
                     const video = entry.target, container = video.parentElement, videoId = container.getAttribute('data-video-id');
                     if (entry.isIntersecting) {
                         sessionStorage.setItem('lastVideoId', videoId); video.muted = isMuted; 
-                        video.play().catch(e => { video.muted = true; isMuted = true; updateAllIcons(true); video.play(); });
+                        video.play().catch(e => { video.muted = true; video.play(); });
                         if (navigator.onLine && !viewedVideos.includes(videoId)) {
                             fetch(`/api/view/${videoId}`, {method: 'POST'}).catch(()=>{});
                             viewedVideos.push(videoId); localStorage.setItem('viewed_videos', JSON.stringify(viewedVideos));
@@ -157,32 +157,38 @@
         document.addEventListener("DOMContentLoaded", function() {
             setupVideoObservers();
             
-            // التمرير اللانهائي (محمي من التكرار)
-            const feed = document.getElementById('videoFeed');
-            let noMoreVideos = false;
-            
-            feed.addEventListener('scroll', function() {
-                if (feed.scrollTop + feed.clientHeight >= feed.scrollHeight - 300 && !isLoadingMore && !noMoreVideos) {
-                    isLoadingMore = true;
-                    fetch('/api/load_more')
-                        .then(res => res.text())
-                        .then(html => {
-                            if (html.trim() === "") {
-                                noMoreVideos = true; // إذا لم تعد هناك فيديوهات، أوقف التحديث
-                            } else {
-                                feed.insertAdjacentHTML('beforeend', html);
-                                setupVideoObservers();
-                            }
-                        })
-                        .catch(() => {})
-                        .finally(() => {
-                            isLoadingMore = false; // مهم جداً: إعادة تعيين الحالة
-                        });
+            // التمرير اللانهائي (محسن لمنع التعليق)
+        const feed = document.getElementById('videoFeed');
+        let noMoreVideos = false;
+        
+        feed.addEventListener('scroll', function() {
+            if (feed.scrollTop + feed.clientHeight >= feed.scrollHeight - 500 && !isLoadingMore && !noMoreVideos) {
+                isLoadingMore = true;
+                fetch('/api/load_more')
+                    .then(res => res.text())
+                    .then(html => {
+                        if (html.trim() === "") {
+                            noMoreVideos = true;
+                        } else {
+                            feed.insertAdjacentHTML('beforeend', html);
+                            setupVideoObservers();
+                        }
+                    })
+                    .catch(() => {})
+                    .finally(() => { 
+                        // انتظار ثانية كاملة قبل السماح بجلب المزيد
+                        setTimeout(() => { isLoadingMore = false; }, 1000); 
+                    });
+            }
+        });
                 }
             });
         });
 
         let clickTimeout = null;
+        let userHasInteracted = false;
+        document.addEventListener('click', () => { userHasInteracted = true; }, { once: true });
+        document.addEventListener('touchstart', () => { userHasInteracted = true; }, { once: true });
         function handleVideoClick(video, videoId) {
             if (clickTimeout !== null) {
                 clearTimeout(clickTimeout); clickTimeout = null;
@@ -194,8 +200,16 @@
 
         function toggleGlobalMute() {
             isMuted = !isMuted;
-            document.querySelectorAll('.video-container video').forEach(v => { v.muted = isMuted; if (!isMuted && v.paused && isElementInViewport(v)) v.play().catch(e => {}); });
+            document.querySelectorAll('.video-container video').forEach(v => {
+                v.muted = isMuted;
+                v.volume = 1.0; // ضمان أن الصوت 100%
+                if (!isMuted) {
+                    // إجبار المتصفح على تحديث الصوت
+                    v.play().catch(e => console.log('خطأ في الصوت:', e));
+                }
+            });
             updateAllIcons(isMuted);
+            if (navigator.vibrate) navigator.vibrate(50); // اهتزاز خفيف
         }
         function updateAllIcons(muted) { document.querySelectorAll('.mute-btn i').forEach(icon => { if (muted) { icon.classList.remove('fa-volume-high'); icon.classList.add('fa-volume-xmark'); } else { icon.classList.remove('fa-volume-xmark'); icon.classList.add('fa-volume-high'); } }); }
         function isElementInViewport(el) { const rect = el.getBoundingClientRect(); return rect.top >= 0 && rect.bottom <= (window.innerHeight || document.documentElement.clientHeight); }
@@ -320,5 +334,17 @@
             if (res.ok) { const data = await res.json(); if (data.success) { element.querySelector('span').innerText = data.likes; const icon = element.querySelector('i'); if (data.is_liked) { element.classList.add('liked'); icon.style.color = '#fe2c55'; } else { element.classList.remove('liked'); icon.style.color = '#888'; } } }
         }
     </script>
+
+    <script>
+        // إيقاف كل الفيديوهات عند الخروج من الصفحة لمنع التعليق
+        window.addEventListener('beforeunload', function() {
+            document.querySelectorAll('video').forEach(v => {
+                v.pause();
+                v.removeAttribute('src');
+                v.load();
+            });
+        });
+    </script>
+    
 </body>
 </html>
