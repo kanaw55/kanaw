@@ -19,14 +19,33 @@
         .video-spinner { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 50px; height: 50px; border: 5px solid rgba(255,255,255,0.3); border-top: 5px solid #fe2c55; border-radius: 50%; animation: spin 1s linear infinite; z-index: 5; display: none; }
         @keyframes spin { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
         
-        .comments-modal { display: none; position: fixed; bottom: 0; left: 0; width: 100%; height: 60%; background: #1a1a1a; border-radius: 20px 20px 0 0; z-index: 999; flex-direction: column; }
-        .comments-header { padding: 15px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+        /* --- تصميم التعليقات الجديد (مثل تيك توك) --- */
+        .comments-backdrop { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 998; backdrop-filter: blur(2px); }
+        .comments-backdrop.active { display: block; }
+        
+        .comments-modal { 
+            position: fixed; bottom: 0; left: 0; width: 100%; height: 75%; 
+            background: #1a1a1a; border-radius: 20px 20px 0 0; z-index: 999; 
+            display: flex; flex-direction: column; 
+            transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.1, 0.7, 1.0, 0.1);
+        }
+        .comments-modal.active { transform: translateY(0); }
+        
+        .drag-handle { width: 40px; height: 5px; background: #555; border-radius: 5px; margin: 10px auto; }
+        
+        .comments-header { padding: 5px 15px 15px; display: flex; justify-content: center; border-bottom: 1px solid #222; position: relative;}
+        .comments-header h3 { margin: 0; font-size: 15px; color: #fff; }
+        .comments-header button { position: absolute; right: 15px; top: 5px; background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; }
+        
         .comments-list { flex: 1; padding: 15px; overflow-y: auto; }
-        .comment-item { display: flex; gap: 10px; margin-bottom: 15px; }
-        .comment-user { font-weight: bold; color: #fe2c55; font-size: 14px; }
-        .comment-input-area { padding: 10px; display: flex; gap: 10px; border-top: 1px solid #333; background: #111; }
-        .comment-input-area input { flex: 1; padding: 10px; border-radius: 20px; border: none; background: #333; color: white; }
-        .comment-input-area button { background: #fe2c55; color: white; border: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; }
+        .comment-item { display: flex; gap: 12px; margin-bottom: 20px; }
+        .comment-avatar { width: 35px; height: 35px; background: #333; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;}
+        .comment-user { font-weight: bold; color: #fff; font-size: 13px; margin-bottom: 4px;}
+        .comment-text { font-size: 14px; color: #ddd; line-height: 1.4; }
+        
+        .comment-input-area { padding: 10px 15px 20px; display: flex; gap: 10px; background: #1a1a1a; border-top: 1px solid #222;}
+        .comment-input-area input { flex: 1; padding: 12px 15px; border-radius: 20px; border: none; background: #2a2a2a; color: white; outline: none;}
+        .comment-input-area button { background: #fe2c55; color: white; border: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; cursor: pointer;}
         
         .upload-label { background: #25D366; color: white; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; display: inline-block; }
         .delete-icon { position: absolute; top: 70px; right: 15px; color: #dc3545; font-size: 24px; z-index: 10; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 50%; }
@@ -38,17 +57,26 @@
     </style>
 </head>
 <body>
+    <!-- الخلفية المعتمة للتعليقات -->
+    <div class="comments-backdrop" id="commentsBackdrop" onclick="closeComments()"></div>
+
+    <!-- نافذة التعليقات الجديدة -->
     <div class="comments-modal" id="commentsModal">
+        <div class="drag-handle"></div>
         <div class="comments-header">
-            <h3 style="margin:0;">التعليقات</h3>
-            <button onclick="closeComments()" style="background:none;border:none;color:white;font-size:20px;"><i class="fa-solid fa-xmark"></i></button>
+            <h3>التعليقات</h3>
+            <button onclick="closeComments()"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <div class="comments-list" id="commentsList"></div>
+        <div class="comments-list" id="commentsList">
+            <!-- التعليقات ستظهر هنا -->
+        </div>
         {% if current_user.is_authenticated %}
         <div class="comment-input-area">
             <input type="text" id="commentInput" placeholder="أضف تعليقاً..." onkeypress="if(event.key === 'Enter') postComment()">
             <button onclick="postComment()" id="postBtn">نشر</button>
         </div>
+        {% else %}
+        <div style="padding:20px;text-align:center;color:#888;">سجل دخولك لتتمكن من التعليق</div>
         {% endif %}
     </div>
 
@@ -57,7 +85,8 @@
             <div>
                 <label for="directUpload" class="upload-label">رفع +</label>
                 <input type="file" id="directUpload" accept="video/*" style="display: none;" onchange="uploadDirectly(this)">
-                <a href="/search" style="margin-right: 15px; color:white; text-decoration:none;"><i class="fa-solid fa-magnifying-glass"></i></a><a href="/inbox" style="margin-right: 10px; color:white; text-decoration:none;"><i class="fa-solid fa-envelope"></i></a>
+                <a href="/search" style="margin-right: 15px; color:white; text-decoration:none;"><i class="fa-solid fa-magnifying-glass"></i></a>
+                <a href="/inbox" style="margin-right: 10px; color:white; text-decoration:none;"><i class="fa-solid fa-envelope"></i></a>
             </div>
             <div style="display:flex; align-items:center;">
                 <div class="bell-container">
@@ -129,6 +158,7 @@
 
     <div class="bottom-nav">
         <a href="/" class="active"><i class="fa-solid fa-house"></i> الرئيسية</a>
+        <a href="/search"><i class="fa-solid fa-magnifying-glass"></i> بحث</a>
         <label for="directUpload" style="color:#888; display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; font-size:12px;">
             <i class="fa-solid fa-circle-plus" style="font-size:24px;"></i>
         </label>
@@ -139,8 +169,6 @@
     <script>
         const isAuthenticated = {{ 'true' if current_user.is_authenticated else 'false' }};
         let isMuted = true;
-        
-        // جلب قائمة الفيديوهات التي شاهدها المستخدم من المتصفح
         let viewedVideos = JSON.parse(localStorage.getItem('viewed_videos') || '[]');
 
         document.addEventListener("DOMContentLoaded", function() {
@@ -159,7 +187,6 @@
                             video.play();
                         });
                         
-                        // التحقق مما إذا كان الفيديو لم يشاهد من قبل
                         if (!viewedVideos.includes(videoId)) {
                             fetch(`/api/view/${videoId}`, {method: 'POST'}).then(res => res.json()).then(data => {
                                 if(data.success) {
@@ -167,7 +194,6 @@
                                     if(viewSpan) viewSpan.innerText = data.views;
                                 }
                             });
-                            // إضافة الفيديو للذاكرة المحلية
                             viewedVideos.push(videoId);
                             localStorage.setItem('viewed_videos', JSON.stringify(viewedVideos));
                         }
@@ -242,12 +268,20 @@
         }
 
         let currentVideoId = null;
+        const commentsModal = document.getElementById('commentsModal');
+        const commentsBackdrop = document.getElementById('commentsBackdrop');
+
         function openComments(videoId) {
             currentVideoId = videoId;
-            document.getElementById('commentsModal').style.display = 'flex';
+            commentsModal.classList.add('active');
+            commentsBackdrop.classList.add('active');
             loadComments(videoId);
         }
-        function closeComments() { document.getElementById('commentsModal').style.display = 'none'; }
+        
+        function closeComments() {
+            commentsModal.classList.remove('active');
+            commentsBackdrop.classList.remove('active');
+        }
 
         async function loadComments(videoId) {
             const res = await fetch(`/api/comments/${videoId}`);
@@ -255,7 +289,13 @@
             const list = document.getElementById('commentsList');
             list.innerHTML = data.length === 0 ? '<p style="text-align:center;color:#888;">لا توجد تعليقات</p>' : '';
             data.forEach(c => {
-                list.innerHTML += `<div class="comment-item"><div style="width:35px;height:35px;background:#333;border-radius:50%;display:flex;justify-content:center;align-items:center;">👤</div><div><div class="comment-user">@${c.user}</div><div>${c.content}</div></div></div>`;
+                list.innerHTML += `<div class="comment-item">
+                    <div class="comment-avatar">👤</div>
+                    <div>
+                        <div class="comment-user">@${c.user}</div>
+                        <div class="comment-text">${c.content}</div>
+                    </div>
+                </div>`;
             });
         }
 
