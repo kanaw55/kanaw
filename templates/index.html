@@ -133,6 +133,24 @@
         let isMuted = true, viewedVideos = JSON.parse(localStorage.getItem('viewed_videos') || '[]'), currentVideoId = null, currentParentId = null, shareVideoId = null;
         let isLoadingMore = false;
 
+        // تحميل الفيديو التالي مسبقاً لسرعة الانتقال (مثل تيك توك)
+        function preloadNextVideo(currentVideo) {
+            const containers = document.querySelectorAll('.video-container');
+            for (let i = 0; i < containers.length; i++) {
+                if (containers[i].contains(currentVideo)) {
+                    const nextContainer = containers[i + 1];
+                    if (nextContainer) {
+                        const nextVideo = nextContainer.querySelector('video');
+                        if (nextVideo && nextVideo.preload !== 'auto') {
+                            nextVideo.preload = 'auto'; // ابدأ بتحميل الفيديو التالي في الخلفية
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
+
         function updateOnlineStatus() { const badge = document.getElementById('offlineBadge'); if (badge) { if (navigator.onLine) badge.classList.remove('show'); else badge.classList.add('show'); } }
         window.addEventListener('online', updateOnlineStatus); window.addEventListener('offline', updateOnlineStatus);
 
@@ -142,7 +160,7 @@
                 entries.forEach(entry => {
                     const video = entry.target, container = video.parentElement, videoId = container.getAttribute('data-video-id');
                     if (entry.isIntersecting) {
-                        sessionStorage.setItem('lastVideoId', videoId); video.muted = isMuted; 
+                        sessionStorage.setItem('lastVideoId', videoId); preloadNextVideo(video); video.muted = isMuted; 
                         video.play().catch(e => { video.muted = true; video.play(); });
                         if (navigator.onLine && !viewedVideos.includes(videoId)) {
                             fetch(`/api/view/${videoId}`, {method: 'POST'}).catch(()=>{});
