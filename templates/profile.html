@@ -114,11 +114,11 @@
                 <button onclick="shareProfile('{{ user.username }}')" class="btn" style="background:#333;"><i class="fa-solid fa-share"></i> مشاركة</button>
                 <button onclick="showQR()" class="btn" style="background:#333;"><i class="fa-solid fa-qrcode"></i> QR</button>
             {% elif current_user.is_authenticated and current_user.id != user.id %}
-                <a href="/toggle_follow/{{ user.id }}" class="btn" style="background:{% if is_following %}#333{% elif has_requested %}#ff9800{% else %}#fe2c55{% endif %};">
+                <a href="javascript:void(0)" onclick="if(!isAuthenticated) { window.location.href=\'/register\'; } else { window.location.href=\'/toggle_follow/{{ user.id }}\'; }" class="btn" style="background:{% if is_following %}#333{% elif has_requested %}#ff9800{% else %}#fe2c55{% endif %};">
                     {% if is_following %} متابَع {% elif has_requested %} معلق {% else %} متابعة {% endif %}
                 </a>
-                <a href="/chat/{{ user.username }}" class="btn" style="background:#333;"><i class="fa-solid fa-envelope"></i></a>
-                <a href="/block/{{ user.id }}" class="btn" style="background:{% if is_blocked %}#28a745{% else %}#dc3545{% endif %};" onclick="return confirm('{% if is_blocked %}إلغاء الحظر؟{% else %}حظر هذا الشخص؟{% endif %}')">
+                <a href="javascript:void(0)" onclick="if(!isAuthenticated) { window.location.href=\'/register\'; } else { window.location.href=\'/chat/{{ user.username }}\'; }" class="btn" style="background:#333;"><i class="fa-solid fa-envelope"></i></a>
+                <a href="javascript:void(0)" onclick="if(!isAuthenticated) { window.location.href=\'/register\'; } else { window.location.href=\'/block/{{ user.id }}\'; }" class="btn" style="background:{% if is_blocked %}#28a745{% else %}#dc3545{% endif %};" onclick="return confirm('{% if is_blocked %}إلغاء الحظر؟{% else %}حظر هذا الشخص؟{% endif %}')">
                     <i class="fa-solid fa-ban"></i>
                 </a>
             {% endif %}
@@ -185,6 +185,7 @@
     </div>
 
     <script>
+        const isAuthenticated = {{ 'true' if current_user.is_authenticated else 'false' }};
         // إخفاء الـ Skeleton وإظهار الشبكة الحقيقية بعد تحميل الصفحة
         window.addEventListener('load', function() {
             const skeleton = document.getElementById('skeleton-grid');
@@ -250,6 +251,7 @@
     
 
     <script>
+        const isAuthenticated = {{ 'true' if current_user.is_authenticated else 'false' }};
         function showQR() {
             document.getElementById('qrBackdrop').classList.add('active');
             document.getElementById('qrModal').classList.add('active');
@@ -289,6 +291,7 @@
     </div>
     
     <script>
+        const isAuthenticated = {{ 'true' if current_user.is_authenticated else 'false' }};
         function openVideoModal(videoUrl) {
             const modal = document.getElementById('instaVideoModal');
             const player = document.getElementById('instaVideoPlayer');

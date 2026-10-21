@@ -70,12 +70,10 @@
         <div class="drag-handle"></div>
         <div class="comments-header"><h3>التعليقات</h3><button onclick="closeComments()"><i class="fa-solid fa-xmark"></i></button></div>
         <div class="comments-list" id="commentsList"></div>
-        {% if current_user.is_authenticated %}
         <div class="comment-input-area">
-            <input type="text" id="commentInput" placeholder="أضف تعليقاً..." onkeypress="if(event.key === 'Enter') postComment()">
+            <input type="text" id="commentInput" placeholder="أضف تعليقاً..." onkeypress="if(event.key === 'Enter') postComment()" onclick="if(!isAuthenticated) window.location.href='/register'">
             <button onclick="postComment()" id="postBtn">نشر</button>
         </div>
-        {% endif %}
     </div>
 
     
@@ -262,6 +260,7 @@
         }
 
         async function postComment() {
+            if (!isAuthenticated) return window.location.href='/register';
             const content = document.getElementById('commentInput').value.trim();
             if (!content || !currentVideoId) return;
             const res = await fetch(`/api/comment/${currentVideoId}`, {
