@@ -8,11 +8,14 @@
     <style>
         body { font-family: sans-serif; background: #111; color: #fff; margin: 0; padding-bottom: 50px; }
         .header { background: #222; padding: 20px; text-align: center; border-bottom: 1px solid #333; position: relative; }
-        .header a { position: absolute; right: 20px; top: 25px; color: #fff; text-decoration: none; font-size: 20px; }
-        .group-icon { width: 80px; height: 80px; background: #fe2c55; border-radius: 50%; margin: 0 auto 15px; display: flex; justify-content: center; align-items: center; font-size: 40px; }
+        .header a.close-btn { position: absolute; right: 20px; top: 25px; color: #fff; text-decoration: none; font-size: 20px; }
+        .group-pic-container { width: 100px; height: 100px; background: #fe2c55; border-radius: 50%; margin: 0 auto 15px; display: flex; justify-content: center; align-items: center; font-size: 40px; overflow: hidden; position: relative; border: 2px solid #333;}
+        .group-pic-container img { width: 100%; height: 100%; object-fit: cover; }
+        .edit-pic-btn { position: absolute; bottom: 0; right: 0; background: #007bff; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; font-size: 14px; border: 2px solid #222;}
         .group-name { font-size: 22px; font-weight: bold; margin: 0; }
+        .group-desc { color: #ccc; font-size: 14px; margin: 10px 20px; line-height: 1.5;}
         .section { background: #1a1a1a; margin: 15px; border-radius: 10px; padding: 15px; }
-        .section-title { font-size: 14px; color: #888; font-weight: bold; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        .section-title { font-size: 14px; color: #888; font-weight: bold; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between;}
         .member-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #222; }
         .member-item:last-child { border-bottom: none; }
         .avatar { width: 40px; height: 40px; background: #333; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 20px; overflow: hidden; }
@@ -20,18 +23,78 @@
         .member-info { flex: 1; }
         .member-name { font-weight: bold; font-size: 15px; }
         .member-role { font-size: 11px; color: #fe2c55; }
-        .action-btn { background: none; border: none; color: #dc3545; font-size: 18px; cursor: pointer; }
+        .action-btn { background: none; border: none; color: #dc3545; font-size: 18px; cursor: pointer; padding: 5px;}
         .copy-box { display: flex; background: #222; border: 1px solid #444; border-radius: 8px; overflow: hidden; margin-top: 10px; }
         .copy-box input { flex: 1; background: none; border: none; color: #fff; padding: 12px; font-size: 14px; }
         .copy-btn { background: #007bff; border: none; color: #fff; padding: 0 20px; cursor: pointer; font-weight: bold; }
+        
+        .request-box { display: flex; align-items: center; gap: 10px; padding: 10px; background: #222; border-radius: 8px; margin-bottom: 10px;}
+        .btn-accept { background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-size: 12px;}
+        .btn-reject { background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-size: 12px;}
+
+        /* نافذة التعديل */
+        .modal-backdrop { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; }
+        .modal-backdrop.active { display: block; }
+        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #222; width: 90%; max-width: 400px; border-radius: 15px; padding: 20px; z-index: 1001; flex-direction: column; gap: 15px;}
+        .modal.active { display: flex; }
+        .modal h3 { margin: 0; text-align: center; }
+        .modal textarea { width: 100%; height: 80px; background: #333; border: none; border-radius: 8px; color: white; padding: 10px; box-sizing: border-box; resize: none; font-family: inherit;}
+        .modal-actions { display: flex; gap: 10px; }
+        .modal-actions button { flex: 1; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; }
+        .btn-save { background: #fe2c55; color: white; }
+        .btn-cancel { background: #444; color: white; }
+        input[type="file"] { display: none; }
+        .switch-container { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; background: #333; padding: 10px; border-radius: 8px;}
+        .switch { position: relative; display: inline-block; width: 44px; height: 22px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #555; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #fe2c55; }
+        input:checked + .slider:before { transform: translateX(22px); }
     </style>
 </head>
 <body>
+    <!-- نافذة التعديل -->
+    <div class="modal-backdrop" id="editBackdrop" onclick="closeEditModal()"></div>
+    <div class="modal" id="editModal">
+        <h3>تعديل معلومات المجموعة</h3>
+        <form method="POST" action="/group/{{ group.id }}/update_info" enctype="multipart/form-data">
+            <label style="display:block; margin-bottom:5px; font-size:13px; color:#aaa;">وصف المجموعة</label>
+            <textarea name="description" placeholder="اكتب وصفاً للمجموعة...">{{ group.description }}</textarea>
+            
+            <div class="switch-container">
+                <span style="font-size:14px;">يتطلب موافقة للانضمام</span>
+                <label class="switch">
+                    <input type="checkbox" name="join_approval" {% if group.join_approval %}checked{% endif %}>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div style="margin-top: 15px;">
+                <label style="display:block; margin-bottom:5px; font-size:13px; color:#aaa;">تغيير صورة المجموعة (اختياري)</label>
+                <input type="file" name="group_pic" id="groupPicInput" accept="image/*">
+                <label for="groupPicInput" style="background:#333; color:white; padding:10px; border-radius:8px; display:block; text-align:center; cursor:pointer;"><i class="fa-solid fa-camera"></i> اختر صورة</label>
+            </div>
+
+            <div class="modal-actions" style="margin-top:20px;">
+                <button type="button" class="btn-cancel" onclick="closeEditModal()">إلغاء</button>
+                <button type="submit" class="btn-save">حفظ التعديلات</button>
+            </div>
+        </form>
+    </div>
+
     <div class="header">
-        <a href="/chat_group/{{ group.id }}"><i class="fa-solid fa-xmark"></i></a>
-        <div class="group-icon"><i class="fa-solid fa-users"></i></div>
+        <a href="/chat_group/{{ group.id }}" class="close-btn"><i class="fa-solid fa-xmark"></i></a>
+        <div class="group-pic-container">
+            {% if group.group_pic %}<img src="{{ group.group_pic }}">{% else %}<i class="fa-solid fa-users"></i>{% endif %}
+            {% if current_user in group.admins %}<div class="edit-pic-btn" onclick="openEditModal()"><i class="fa-solid fa-pen"></i></div>{% endif %}
+        </div>
         <h2 class="group-name">{{ group.name }}</h2>
         <p style="color: #888; margin: 5px 0 0;">{{ group.members|length }} عضو</p>
+    </div>
+
+    <div class="group-desc">
+        {{ group.description }}
     </div>
 
     <!-- رابط الدعوة -->
@@ -43,6 +106,28 @@
         </div>
     </div>
 
+    <!-- طلبات الانضمام (تظهر للمشرفين فقط) -->
+    {% if current_user in group.admins %}
+    {% set requests = group_join_requests if group_join_requests else [] %}
+    {% if requests %}
+    <div class="section">
+        <div class="section-title" style="color: #fe2c55;"><i class="fa-solid fa-bell"></i> طلبات انضمام جديدة</div>
+        {% for req in requests %}
+            <div class="request-box">
+                <div class="avatar">
+                    {% if req.user.profile_pic %}<img src="{{ req.user.profile_pic }}">{% else %}👤{% endif %}
+                </div>
+                <div class="member-info">
+                    <div class="member-name">@{{ req.user.username }}</div>
+                </div>
+                <a href="/group/{{ group.id }}/approve_join/{{ req.id }}" class="btn-accept">قبول</a>
+                <a href="/group/{{ group.id }}/reject_join/{{ req.id }}" class="btn-reject">رفض</a>
+            </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endif %}
+
     <!-- الأعضاء والمشرفين -->
     <div class="section">
         <div class="section-title">الأعضاء ({{ group.members|length }})</div>
@@ -53,15 +138,11 @@
             </div>
             <div class="member-info">
                 <div class="member-name">@{{ member.username }}</div>
-                {% if member.id == group.creator_id %}
-                    <div class="member-role">المالك</div>
-                {% elif member in group.admins %}
-                    <div class="member-role">مشرف</div>
-                {% endif %}
+                {% if member.id == group.creator_id %}<div class="member-role">المالك</div>
+                {% elif member in group.admins %}<div class="member-role">مشرف</div>{% endif %}
             </div>
             
             {% if current_user.id == group.creator_id and member.id != current_user.id %}
-                <!-- خيارات المالك -->
                 {% if member in group.admins %}
                 <form method="POST" action="/group/{{ group.id }}/remove_admin/{{ member.id }}">
                     <button type="submit" class="action-btn" title="إزالة الإشراف" style="color:#ff9800;"><i class="fa-solid fa-user-minus"></i></button>
@@ -72,13 +153,12 @@
                 </form>
                 {% endif %}
                 <form method="POST" action="/group/{{ group.id }}/kick/{{ member.id }}">
-                    <button type="submit" class="action-btn" title="طرد" onclick="return confirm('هل أنت متأكد من طرد هذا العضو؟')"><i class="fa-solid fa-trash"></i></button>
+                    <button type="submit" class="action-btn" title="طرد" onclick="return confirm('طرد؟')"><i class="fa-solid fa-trash"></i></button>
                 </form>
             {% elif current_user in group.admins and member.id != group.creator_id and member.id != current_user.id %}
-                <!-- خيارات المشرف (يمكنه طرد الأعضاء العاديين) -->
                 {% if member not in group.admins %}
                 <form method="POST" action="/group/{{ group.id }}/kick/{{ member.id }}">
-                    <button type="submit" class="action-btn" title="طرد" onclick="return confirm('طرد هذا العضو؟')"><i class="fa-solid fa-trash"></i></button>
+                    <button type="submit" class="action-btn" title="طرد" onclick="return confirm('طرد؟')"><i class="fa-solid fa-trash"></i></button>
                 </form>
                 {% endif %}
             {% endif %}
@@ -94,6 +174,8 @@
             navigator.clipboard.writeText(copyText.value);
             alert("تم نسخ رابط الدعوة!");
         }
+        function openEditModal() { document.getElementById('editBackdrop').classList.add('active'); document.getElementById('editModal').classList.add('active'); }
+        function closeEditModal() { document.getElementById('editBackdrop').classList.remove('active'); document.getElementById('editModal').classList.remove('active'); }
     </script>
 </body>
 </html>

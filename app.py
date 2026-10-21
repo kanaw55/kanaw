@@ -106,6 +106,9 @@ class ChatGroup(db.Model):
     members = db.relationship('User', secondary=group_member, backref='chat_groups')
     admins = db.relationship('User', secondary=group_admin, backref='admin_groups')
     invite_code = db.Column(db.String(20), unique=True, default=None)
+    description = db.Column(db.Text, default='مرحباً بكم في المجموعة!')
+    group_pic = db.Column(db.String(500), default=None)
+    join_approval = db.Column(db.Boolean, default=False)
 
 class Message(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -135,7 +138,16 @@ class FollowRequest(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     sender = db.relationship('User', foreign_keys=[sender_id])
 
+
+class GroupJoinRequest(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('chat_group.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    user = db.relationship('User', backref='group_join_requests')
+
 class Report(db.Model):
+
     id = db.Column(db.Integer, primary_key=True)
     reporter_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     video_id = db.Column(db.Integer, db.ForeignKey('video.id'))
@@ -153,7 +165,15 @@ def inject_notifications():
         return dict(unread_notifications=Notification.query.filter_by(user_id=current_user.id, is_read=False).count())
     return dict(unread_notifications=0)
 
+
+@app.template_filter('linkify')
+def linkify(text):
+    if not text: return text
+    # تحويل الروابط إلى a tags
+    return re.sub(r'(https?://[^\s]+|www\.[^\s]+)', r'<a href="\1" target="_blank" style="color:#00f2fe; text-decoration:underline;">\1</a>', text)
+
 @app.template_filter('hashtag')
+
 def hashtag_filter(text):
     if not text: return text
     return re.sub(r'#(\w+)', r'<a href="/hashtag/\1" style="color:#00f2ea; text-decoration:none;">#\1</a>', text)
@@ -206,7 +226,32 @@ def inbox():
         return render_template('inbox.html', users=[], groups=[], stories=[])
 
 
+
+@app.route('/group/<int:group_id>/update_info', methods=['POST'])
+@login_required
+def update_group_info(group_id):
+    group = ChatGroup.query.get_or_404(group_id)
+    if current_user not in group.admins: return "غير مصرح", 403
+        
+    if 'group_pic' in request.files:
+        file = request.files['group_pic']
+        if file and file.filename != '':
+            res = cloudinary.uploader.upload(file, resource_type="image")
+            group.group_pic = res.get('secure_url')
+            
+    if request.form.get('description') is not None:
+        group.description = request.form.get('description')
+        
+    group.join_approval = True if request.form.get('join_approval') == 'on' else False
+        
+    db.session.commit()
+    return redirect(url_for('group_info', group_id=group_id))
+
 @app.route('/group_info/<int:group_id>')
+
+
+@app.route('/group_info/<int:group_id>')
+
 @login_required
 def group_info(group_id):
     group = ChatGroup.query.get_or_404(group_id)
@@ -220,12 +265,50 @@ def group_info(group_id):
 @login_required
 def join_group(code):
     group = ChatGroup.query.filter_by(invite_code=code).first()
-    if group:
-        if current_user not in group.members:
-            group.members.append(current_user)
-            db.session.commit()
+    if not group: return "الرابط غير صالح أو المجموعة غير موجودة", 404
+    
+    if current_user in group.members:
         return redirect(url_for('chat_group', group_id=group.id))
-    return "الرابط غير صالح أو المجموعة غير موجودة", 404
+        
+    if group.join_approval:
+        # إذا كانت المجموعة تتطلب موافقة، نرسل طلباً
+        existing_req = GroupJoinRequest.query.filter_by(group_id=group.id, user_id=current_user.id).first()
+        if not existing_req:
+            req = GroupJoinRequest(group_id=group.id, user_id=current_user.id)
+            db.session.add(req)
+            db.session.commit()
+        return render_template('join_request_sent.html', group=group)
+    else:
+        # انضمام فوري
+        group.members.append(current_user)
+        db.session.commit()
+        return redirect(url_for('chat_group', group_id=group.id))
+
+@app.route('/group/<int:group_id>/approve_join/<int:req_id>')
+@login_required
+def approve_join(group_id, req_id):
+    group = ChatGroup.query.get_or_404(group_id)
+    if current_user not in group.admins: return "غير مصرح", 403
+    req = GroupJoinRequest.query.get_or_404(req_id)
+    if req.group_id == group.id:
+        group.members.append(req.user)
+        db.session.delete(req)
+        db.session.commit()
+    return redirect(url_for('group_info', group_id=group_id))
+
+@app.route('/group/<int:group_id>/reject_join/<int:req_id>')
+@login_required
+def reject_join(group_id, req_id):
+    group = ChatGroup.query.get_or_404(group_id)
+    if current_user not in group.admins: return "غير مصرح", 403
+    req = GroupJoinRequest.query.get_or_404(req_id)
+    if req.group_id == group.id:
+        db.session.delete(req)
+        db.session.commit()
+    return redirect(url_for('group_info', group_id=group_id))
+
+@app.route('/group/<int:group_id>/update_info', methods=['POST'])
+
 
 @app.route('/group/<int:group_id>/make_admin/<int:user_id>', methods=['POST'])
 @login_required
@@ -410,7 +493,7 @@ def api_like_comment(comment_id):
 def api_share_video(video_id):
     receiver_id = request.get_json().get('receiver_id')
     if receiver_id:
-        db.session.add(Message(sender_id=current_user.id, receiver_id=receiver_id, content=f"شاهد هذا الفيديو: /?video_id={video_id}"))
+        db.session.add(Message(sender_id=current_user.id, receiver_id=receiver_id, content=f"شاهد هذا الفيديو: {request.host_url}?video_id={video_id}"))
         db.session.add(Notification(user_id=receiver_id, sender_id=current_user.id, type='message'))
         db.session.commit()
         return jsonify({'success': True})
