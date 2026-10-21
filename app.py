@@ -120,6 +120,8 @@ class Message(db.Model):
     group_id = db.Column(db.Integer, db.ForeignKey('chat_group.id'), nullable=True)
     content = db.Column(db.Text, nullable=False)
     message_type = db.Column(db.String(20), default='text')
+    is_pinned = db.Column(db.Boolean, default=False)
+    is_read = db.Column(db.Boolean, default=False)
     reaction = db.Column(db.String(10), default=None)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     sender = db.relationship('User', foreign_keys=[sender_id], backref='sent_messages')
