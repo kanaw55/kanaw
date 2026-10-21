@@ -146,9 +146,6 @@ def hashtag_page(tag):
     videos = Video.query.filter(Video.caption.ilike(f'%#{tag}%')).order_by(Video.id.desc()).all()
     return render_template('hashtag.html', tag=tag, videos=videos)
 
-@app.route('/sw.js')
-def sw(): return app.send_static_file('sw.js')
-
 @app.route('/')
 def index():
     feed_type = request.args.get('feed', 'foryou')
@@ -162,13 +159,11 @@ def index():
             videos = Video.query.join(User).filter((User.is_private == False) | (Video.user_id == current_user.id) | (Video.user_id.in_(followed_ids)), ~Video.user_id.in_(blocked_ids)).order_by(db.func.random()).limit(30).all()
         liked_vids = [v.id for v in current_user.liked_videos]
         saved_vids = [v.id for v in current_user.saved_videos]
-        suggested = User.query.filter(User.id != current_user.id, ~User.id.in_(followed_ids), ~User.id.in_(blocked_ids)).order_by(db.func.random()).limit(5).all()
     else:
         videos = Video.query.join(User).filter(User.is_private == False).order_by(db.func.random()).limit(30).all()
         liked_vids, saved_vids = [], []
-        suggested = User.query.order_by(db.func.random()).limit(5).all()
         
-    return render_template('index.html', videos=videos, liked_videos=liked_vids, saved_videos=saved_vids, feed_type=feed_type, suggested_users=suggested)
+    return render_template('index.html', videos=videos, liked_videos=liked_vids, saved_videos=saved_vids, feed_type=feed_type)
 
 @app.route('/trending')
 def trending():
@@ -519,17 +514,6 @@ def chat(username):
     messages = Message.query.filter(((Message.sender_id == current_user.id) & (Message.receiver_id == other_user.id)) | ((Message.sender_id == other_user.id) & (Message.receiver_id == current_user.id))).order_by(Message.timestamp.asc()).all()
     return render_template('chat.html', other_user=other_user, group=None, messages=messages)
 
-@app.route('/api/chat/audio', methods=['POST'])
-@login_required
-def upload_audio():
-    file = request.files.get('audio'); receiver_id = request.form.get('receiver_id')
-    if file and receiver_id:
-        audio_url = cloudinary.uploader.upload(file, resource_type="video").get('secure_url')
-        db.session.add(Message(sender_id=current_user.id, receiver_id=receiver_id, content=audio_url, message_type='audio'))
-        db.session.add(Notification(user_id=receiver_id, sender_id=current_user.id, type='message'))
-        db.session.commit(); return jsonify({'success': True})
-    return jsonify({'success': False}), 400
-
 @app.route('/notifications')
 @login_required
 def notifications():
@@ -538,30 +522,18 @@ def notifications():
     db.session.commit()
     return render_template('notifications.html', notifications=notifs, requests=FollowRequest.query.filter_by(receiver_id=current_user.id).all())
 
-@app.route('/block/<int:user_id>')
-@login_required
-def block_user(user_id):
-    user = User.query.get_or_404(user_id)
-    if user != current_user:
-        if user in current_user.blocked_users: current_user.blocked_users.remove(user)
-        else:
-            current_user.blocked_users.append(user)
-            if user in current_user.followed: current_user.followed.remove(user)
-        db.session.commit()
-    return redirect(url_for('profile', username=user.username))
-
 @app.route('/change_password', methods=['POST'])
 @login_required
 def change_password():
     if current_user.check_password(request.form.get('old_password')) and len(request.form.get('new_password', '')) >= 6:
         current_user.set_password(request.form.get('new_password')); db.session.commit()
         flash('تم تغيير كلمة المرور بنجاح!')
-    else: flash('بيانات غير صحيحة، تأكد من كلمة المرور القديمة وأن الجديدة 6 أحرف.')
+    else: flash('بيانات غير صحيحة.')
     return redirect(url_for('settings'))
 
 @app.route('/generate_fake_data_secret')
 def generate_fake_data():
-    if User.query.count() > 100: return "قاعدة البيانات مليئة بالفعل!"
+    pass # تم إزالة الشرط لتشغيل التوليد دائماً
     first_names = ["ahmed", "sara", "mohammed", "lina", "omar", "nour", "khaled", "yara", "tariq", "huda", "adam", "maya", "ali", "fatima", "hassan", "zainab", "yousef", "layla", "majed", "dina", "sami", "reem", "anas", "salma", "zaid", "rana", "faris", "noor", "kareem", "aya"]
     suffixes = ["gamer", "art", "vlogs", "music", "funny", "cooking", "sports", "tech", "travel", "lifestyle", "fitness", "beauty", "food", "comedy", "news", "photo", "diy", "gaming", "movies", "books", "cars", "fashion", "dance", "sing", "code", "life", "world", "star", "king", "queen"]
     sample_videos = ["https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4"]
@@ -592,7 +564,7 @@ def generate_fake_data():
                 c = Comment(content=random.choice(comments_pool), user_id=commenter.id, video_id=video.id, likes_count=random.randint(0, 100))
                 comments_to_add.append(c)
     db.session.add_all(comments_to_add); db.session.commit()
-    return "🎉 تمت العملية بنجاح! 1000 حساب و 3000 فيديو جاهزون الآن على الموقع. كلمة المرور: 123456"
+    return "🎉 تمت العملية بنجاح! كلمة المرور: 123456"
 
 with app.app_context():
     db.create_all()

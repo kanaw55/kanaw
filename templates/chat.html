@@ -3,212 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>محادثة مع {{ other_user.username }}</title>
+    <title>محادثة</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { font-family: sans-serif; background: #111; color: #fff; margin: 0; display: flex; flex-direction: column; height: 100dvh; overflow: hidden; -webkit-tap-highlight-color: transparent;}
-        .header { background: #222; padding: 15px; display: flex; align-items: center; border-bottom: 1px solid #333; flex-shrink: 0;}
+        body { font-family: sans-serif; background: #111; color: #fff; margin: 0; display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+        .header { background: #222; padding: 15px; display: flex; align-items: center; border-bottom: 1px solid #333; }
         .header a { color: #fff; text-decoration: none; font-size: 20px; margin-left: 15px; }
         .chat-box { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-        
-        .message-wrapper { display: flex; flex-direction: column; max-width: 80%; position: relative;}
-        .sent-wrapper { align-self: flex-start; align-items: flex-start; }
-        .received-wrapper { align-self: flex-end; align-items: flex-end; }
-        
-        .message { padding: 10px 15px; border-radius: 15px; font-size: 15px; line-height: 1.4; word-wrap: break-word; animation: popIn 0.2s ease-out; cursor: pointer;}
-        @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        .sent { background: #007bff; border-bottom-left-radius: 0; color: white;}
-        .received { background: #333; border-bottom-right-radius: 0; color: white;}
-        
-        .reaction-display { background: #222; border-radius: 10px; padding: 2px 6px; font-size: 14px; margin-top: -5px; z-index: 2; border: 1px solid #444; width: fit-content;}
-
+        .message { max-width: 80%; padding: 10px 15px; border-radius: 15px; font-size: 15px; line-height: 1.4; word-wrap: break-word; position: relative; }
+        .sent { background: #007bff; align-self: flex-start; border-bottom-left-radius: 0; }
+        .received { background: #333; align-self: flex-end; border-bottom-right-radius: 0; }
         .audio-message { display: flex; align-items: center; gap: 10px; }
-        .audio-message audio { width: 200px; height: 40px; }
-
-        .input-area { background: #222; padding: 10px 15px; display: flex; gap: 10px; border-top: 1px solid #333; flex-shrink: 0; padding-bottom: max(10px, env(safe-area-inset-bottom)); align-items: center;}
+        .audio-message audio { width: 180px; height: 30px; }
+        .input-area { background: #222; padding: 10px; display: flex; gap: 10px; border-top: 1px solid #333; padding-bottom: max(10px, env(safe-area-inset-bottom)); align-items: center;}
         .input-area input { flex: 1; padding: 12px; border-radius: 20px; border: none; outline: none; background: #333; color: #fff; font-size: 15px;}
-        .input-area button { background: #fe2c55; color: white; border: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center;}
-        .mic-btn { background: #333 !important; color: #fff; width: 45px; height: 45px; border-radius: 50% !important; padding: 0 !important;}
-        .mic-btn.recording { background: #dc3545 !important; animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); } 100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); } }
-
-        /* نافذة التفاعل */
-        .reaction-menu { display: none; position: absolute; background: #2a2a2a; border-radius: 20px; padding: 5px 10px; gap: 10px; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.5); top: -40px; border: 1px solid #444;}
-        .reaction-menu.active { display: flex; }
-        .reaction-menu span { font-size: 20px; cursor: pointer; transition: transform 0.2s;}
-        .reaction-menu span:hover { transform: scale(1.3); }
-        .delete-msg-btn { font-size: 16px; color: #dc3545; cursor: pointer; padding: 5px; display: flex; align-items: center;}
+        .input-area button { background: #fe2c55; color: white; border: none; padding: 10px 15px; border-radius: 50%; font-weight: bold; cursor: pointer; width: 45px; height: 45px; display: flex; justify-content: center; align-items: center;}
+        .mic-btn { background: #333 !important; }
     </style>
 </head>
 <body>
     <div class="header">
         <a href="/inbox"><i class="fa-solid fa-arrow-right"></i></a>
-        <h3 style="margin: 0; flex:1; text-align:center;">@{{ other_user.username }}</h3>
+        <h3 style="margin: 0; flex:1; text-align:center;">
+            {% if group %} {{ group.name }} {% else %} @{{ other_user.username }} {% endif %}
+        </h3>
     </div>
 
     <div class="chat-box" id="chatBox">
-        <div id="typing-indicator" style="display:none; color:#888; font-size:12px; padding:5px; margin-bottom:10px;">جاري الكتابة...</div>
         {% for msg in messages %}
-            <div class="message-wrapper {% if msg.sender_id == current_user.id %}sent-wrapper{% else %}received-wrapper{% endif %}" id="msg-wrapper-{{ msg.id }}">
-                
-                <div class="message {% if msg.sender_id == current_user.id %}sent{% else %}received{% endif %}" 
-                     oncontextmenu="showMenu(event, {{ msg.id }}, {{ msg.sender_id == current_user.id }}); return false;" 
-                     ontouchstart="startTouchTimer(event, {{ msg.id }}, {{ msg.sender_id == current_user.id }})" 
-                     ontouchend="cancelTouchTimer()">
+            {% if msg.sender_id == current_user.id %}
+                <div class="message sent">
                     {% if msg.message_type == 'audio' %}
                         <div class="audio-message"><i class="fa-solid fa-microphone"></i><audio src="{{ msg.content }}" controls></audio></div>
                     {% else %}
                         {{ msg.content }}
                     {% endif %}
                 </div>
-                
-                {% if msg.reaction %}
-                    <div class="reaction-display" id="reaction-{{ msg.id }}">{{ msg.reaction }}</div>
-                {% else %}
-                    <div class="reaction-display" id="reaction-{{ msg.id }}" style="display:none;"></div>
-                {% endif %}
-
-                <!-- نافذة التفاعل المنبثقة -->
-                <div class="reaction-menu" id="menu-{{ msg.id }}">
-                    <span onclick="reactMsg({{ msg.id }}, '❤️')">❤️</span>
-                    <span onclick="reactMsg({{ msg.id }}, '😂')">😂</span>
-                    <span onclick="reactMsg({{ msg.id }}, '👍')">👍</span>
-                    <span onclick="reactMsg({{ msg.id }}, '😮')">😮</span>
-                    {% if msg.sender_id == current_user.id %}
-                        <i class="fa-solid fa-trash delete-msg-btn" onclick="deleteMsg({{ msg.id }})"></i>
+            {% else %}
+                <div class="message received">
+                    {% if msg.message_type == 'audio' %}
+                        <div class="audio-message"><i class="fa-solid fa-microphone"></i><audio src="{{ msg.content }}" controls></audio></div>
+                    {% else %}
+                        {{ msg.content }}
                     {% endif %}
                 </div>
-            </div>
+            {% endif %}
         {% endfor %}
     </div>
 
-    <form class="input-area" method="POST" id="chatForm">
-        <input type="text" name="content" id="messageInput" placeholder="اكتب رسالة..." required autocomplete="off" oninput="showTyping()">
-        <button type="submit" id="sendBtn"><i class="fa-solid fa-paper-plane"></i></button>
-        <button type="button" class="mic-btn" id="micBtn" onclick="toggleRecord()"><i class="fa-solid fa-microphone"></i></button>
+    <form class="input-area" method="POST">
+        <input type="text" name="content" placeholder="اكتب رسالة..." required autocomplete="off">
+        <button type="submit"><i class="fa-solid fa-paper-plane"></i></button>
     </form>
-
-    <script>
-        const chatBox = document.getElementById('chatBox');
-        chatBox.scrollTop = chatBox.scrollHeight;
-
-        // --- نظام التفاعل مع الرسائل (الضغط المطول) ---
-        let touchTimer;
-        let activeMenuId = null;
-
-        function startTouchTimer(event, msgId, isMine) {
-            touchTimer = setTimeout(() => {
-                showMenu(event, msgId, isMine);
-            }, 500); // الضغط المطول نصف ثانية
-        }
-
-        function cancelTouchTimer() {
-            clearTimeout(touchTimer);
-        }
-
-        function showMenu(event, msgId, isMine) {
-            // إغلاق أي قائمة مفتوحة
-            if (activeMenuId) {
-                document.getElementById(`menu-${activeMenuId}`).classList.remove('active');
-            }
-            
-            const menu = document.getElementById(`menu-${msgId}`);
-            if (menu) {
-                menu.classList.add('active');
-                activeMenuId = msgId;
-                
-                // إغلاق القائمة عند الضغط في أي مكان آخر
-                document.addEventListener('click', closeAllMenus);
-            }
-        }
-
-        function closeAllMenus(e) {
-            if (e && e.target.closest('.reaction-menu')) return; // إذا كان يضغط على القائمة نفسها، لا تغلقها
-            
-            document.querySelectorAll('.reaction-menu').forEach(m => m.classList.remove('active'));
-            activeMenuId = null;
-            document.removeEventListener('click', closeAllMenus);
-        }
-
-        async function reactMsg(msgId, emoji) {
-            const res = await fetch(`/api/message/react/${msgId}`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({reaction: emoji})
-            });
-            if (res.ok) {
-                const data = await res.json();
-                const display = document.getElementById(`reaction-${msgId}`);
-                if (data.reaction) {
-                    display.innerText = data.reaction;
-                    display.style.display = 'block';
-                } else {
-                    display.style.display = 'none';
-                }
-            }
-            closeAllMenus();
-        }
-
-        async function deleteMsg(msgId) {
-            if (!confirm('هل تريد حذف هذه الرسالة؟')) return;
-            const res = await fetch(`/api/message/delete/${msgId}`, { method: 'POST' });
-            if (res.ok) {
-                document.getElementById(`msg-wrapper-${msgId}`).remove();
-            } else {
-                alert('لا يمكنك حذف رسالة شخص آخر!');
-            }
-            closeAllMenus();
-        }
-
-        // --- نظام تسجيل الصوت ---
-        let mediaRecorder, audioChunks = [], isRecording = false;
-        const micBtn = document.getElementById('micBtn'), messageInput = document.getElementById('messageInput');
-
-        async function toggleRecord() {
-            if (!isRecording) {
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    mediaRecorder = new MediaRecorder(stream);
-                    audioChunks = [];
-                    mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
-                    mediaRecorder.onstop = async () => {
-                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                        const formData = new FormData();
-                        formData.append('audio', audioBlob, 'voice.webm');
-                        formData.append('receiver_id', '{{ other_user.id }}');
-                        micBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-                        try {
-                            const res = await fetch('/api/chat/audio', { method: 'POST', body: formData });
-                            if(res.ok) window.location.reload();
-                            else alert('فشل إرسال الصوت');
-                        } catch (e) { alert('خطأ في الاتصال'); }
-                    };
-                    mediaRecorder.start();
-                    isRecording = true;
-                    micBtn.classList.add('recording');
-                    micBtn.innerHTML = '<i class="fa-solid fa-stop"></i>';
-                    messageInput.disabled = true;
-                    document.getElementById('sendBtn').style.display = 'none';
-                } catch (err) { alert('تعذر الوصول للميكروفون.'); }
-            } else {
-                mediaRecorder.stop();
-                mediaRecorder.stream.getTracks().forEach(track => track.stop());
-                isRecording = false;
-                micBtn.classList.remove('recording');
-                micBtn.innerHTML = '<i class="fa-solid fa-microphone"></i>';
-                messageInput.disabled = false;
-                document.getElementById('sendBtn').style.display = 'flex';
-            }
-        }
-    </script>
-<script>
-        let typingTimeout;
-        function showTyping() {
-            const indicator = document.getElementById('typing-indicator');
-            indicator.style.display = 'block';
-            clearTimeout(typingTimeout);
-            typingTimeout = setTimeout(() => { indicator.style.display = 'none'; }, 1500);
-        }
-    </script>
+    <script> const chatBox = document.getElementById('chatBox'); chatBox.scrollTop = chatBox.scrollHeight; </script>
 </body>
 </html>

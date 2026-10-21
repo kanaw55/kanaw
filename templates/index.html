@@ -67,14 +67,10 @@
         .bottom-nav a.active i { animation: navBounce 0.4s ease; }
         @keyframes navBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
         .bottom-nav a i { font-size: 20px; }
-        
-        .offline-badge { display: none; position: fixed; top: 60px; left: 50%; transform: translateX(-50%); background: #dc3545; color: white; padding: 5px 15px; border-radius: 20px; font-size: 12px; z-index: 9999; font-weight: bold; }
-        .offline-badge.show { display: block; }
     </style>
 </head>
 <body>
-    <div class="offline-badge" id="offlineBadge">أنت غير متصل بالإنترنت</div>
-    
+    <!-- المودالات -->
     <div class="comments-backdrop" id="commentsBackdrop" onclick="closeComments()"></div>
     <div class="comments-modal" id="commentsModal">
         <div class="drag-handle"></div>
@@ -89,6 +85,14 @@
         {% endif %}
     </div>
 
+    <div class="comments-backdrop" id="shareBackdrop" onclick="closeShareModal()"></div>
+    <div class="comments-modal" id="shareModal" style="height: 50%;">
+        <div class="drag-handle"></div>
+        <div class="comments-header"><h3>إرسال إلى...</h3><button onclick="closeShareModal()"><i class="fa-solid fa-xmark"></i></button></div>
+        <div class="comments-list" id="shareUserList"></div>
+    </div>
+
+    <!-- الشريط العلوي -->
     <div class="top-nav">
         <div style="display:flex; align-items:center;">
             {% if current_user.is_authenticated and current_user.is_admin %}
@@ -113,6 +117,7 @@
         </div>
     </div>
 
+    <!-- الفيديوهات -->
     <div class="video-feed" id="videoFeed" style="padding-top: 10px;">
         {% for video in videos %}
         <div class="video-container" data-video-id="{{ video.id }}">
@@ -128,7 +133,7 @@
             {% endif %}
 
             <div class="video-info" style="position: absolute; bottom: 20px; right: 15px; width: 70%; text-align: right; z-index: 5; text-shadow: 1px 1px 3px rgba(0,0,0,0.8);">
-                <a href="/profile/{{ video.user.username }}" style="color:white; text-decoration:none; font-weight:bold; font-size: 16px;">@{{ video.user.username }} {% if video.user.is_verified %}<i class="fa-solid fa-circle-check" style="color: #1DA1F2; font-size: 14px;"></i>{% endif %}</a>
+                <a href="/profile/{{ video.user.username }}" style="color:white; text-decoration:none; font-weight:bold; font-size: 16px;">@{{ video.user.username }} {% if video.user.username == 'kanaw' or video.user.followers.count() >= 100000 %}<i class="fa-solid fa-circle-check" style="color: #1DA1F2; font-size: 14px;"></i>{% endif %}</a>
                 <p style="color:white; margin: 5px 0;">{{ video.caption|hashtag }}</p>
                 <div style="font-size: 14px; color:white;"><i class="fa-solid fa-music"></i> الصوت الأصلي</div>
             </div>
@@ -152,22 +157,13 @@
         <a href="{% if current_user.is_authenticated %}/profile/{{ current_user.username }}{% else %}/login{% endif %}"><i class="fa-solid fa-user"></i> حسابي</a>
     </div>
     <input type="file" id="directUpload" accept="video/*" style="display: none;" onchange="promptCaptionAndUpload(this)">
-
-    <!-- نافذة المشاركة -->
-    <div class="comments-backdrop" id="shareBackdrop" onclick="closeShareModal()"></div>
-    <div class="comments-modal" id="shareModal" style="height: 50%;">
-        <div class="drag-handle"></div>
-        <div class="comments-header"><h3>إرسال إلى...</h3><button onclick="closeShareModal()"><i class="fa-solid fa-xmark"></i></button></div>
-        <div class="comments-list" id="shareUserList"></div>
-    </div>
     
     <script>
         const isAuthenticated = {{ 'true' if current_user.is_authenticated else 'false' }};
         let isMuted = true, viewedVideos = JSON.parse(localStorage.getItem('viewed_videos') || '[]'), currentVideoId = null, currentParentId = null, shareVideoId = null;
 
-        if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(err => console.log(err));
-        function updateOnlineStatus() { const badge = document.getElementById('offlineBadge'); if (navigator.onLine) badge.classList.remove('show'); else badge.classList.add('show'); }
-        window.addEventListener('online', updateOnlineStatus); window.addEventListener('offline', updateOnlineStatus); updateOnlineStatus();
+        function updateOnlineStatus() { const badge = document.getElementById('offlineBadge'); if (badge) { if (navigator.onLine) badge.classList.remove('show'); else badge.classList.add('show'); } }
+        window.addEventListener('online', updateOnlineStatus); window.addEventListener('offline', updateOnlineStatus);
 
         document.addEventListener("DOMContentLoaded", function() {
             const videos = document.querySelectorAll('.video-container video');
@@ -175,8 +171,7 @@
                 entries.forEach(entry => {
                     const video = entry.target, container = video.parentElement, videoId = container.getAttribute('data-video-id');
                     if (entry.isIntersecting) {
-                        sessionStorage.setItem('lastVideoId', videoId);
-                        video.muted = isMuted; 
+                        sessionStorage.setItem('lastVideoId', videoId); video.muted = isMuted; 
                         video.play().catch(e => { video.muted = true; isMuted = true; updateAllIcons(true); video.play(); });
                         if (navigator.onLine && !viewedVideos.includes(videoId)) {
                             fetch(`/api/view/${videoId}`, {method: 'POST'}).catch(()=>{});
