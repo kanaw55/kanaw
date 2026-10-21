@@ -24,6 +24,19 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True, 'pool_recycle'
 
 cloudinary.config(cloud_name="hgeundkj", api_key="648417333443189", api_secret="JFLlaKxfpaUGKHOj_jHVRieLYpw", secure=True)
 
+VALID_VIDEOS = [
+    "https://www.w3schools.com/html/mov_bbb.mp4",
+    "https://www.w3schools.com/html/movie.mp4",
+    "https://test-videos.co.uk/vids/sintel/mp4/h264/720/Sintel_720_10s_1MB.mp4",
+    "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_1MB.mp4",
+    "https://test-videos.co.uk/vids/tearsofsteel/mp4/h264/720/TearsOfSteel_720_10s_1MB.mp4",
+    "https://test-videos.co.uk/vids/sintel/mp4/h264/720/Sintel_720_10s_2MB.mp4",
+    "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_2MB.mp4",
+    "https://test-videos.co.uk/vids/tearsofsteel/mp4/h264/720/TearsOfSteel_720_10s_2MB.mp4",
+    "https://test-videos.co.uk/vids/sintel/mp4/h264/720/Sintel_720_10s_5MB.mp4",
+    "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_5MB.mp4"
+]
+
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
@@ -520,16 +533,23 @@ def notifications():
 @app.route('/clear_old_videos_secret')
 def clear_old_videos():
     try:
-        # حذف كل الفيديوهات التي لا تنتمي للقائمة الجديدة
-        Video.query.filter(Video.filename.notin_(["https://www.w3schools.com/html/mov_bbb.mp4", "https://www.w3schools.com/html/movie.mp4", "https://test-videos.co.uk/vids/sintel/mp4/h264/720/Sintel_720_10s_1MB.mp4", "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_1MB.mp4", "https://test-videos.co.uk/vids/tearsofsteel/mp4/h264/720/TearsOfSteel_720_10s_1MB.mp4", "https://test-videos.co.uk/vids/sintel/mp4/h264/720/Sintel_720_10s_2MB.mp4", "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_2MB.mp4", "https://test-videos.co.uk/vids/tearsofsteel/mp4/h264/720/TearsOfSteel_720_10s_2MB.mp4", "https://test-videos.co.uk/vids/sintel/mp4/h264/720/Sintel_720_10s_5MB.mp4", "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_5MB.mp4"])).delete(synchronize_session=False)
+        bad_videos = Video.query.filter(Video.filename.notin_(VALID_VIDEOS)).all()
+        
+        for video in bad_videos:
+            Report.query.filter_by(video_id=video.id).delete()
+            Comment.query.filter_by(video_id=video.id).delete()
+            db.session.delete(video)
+            
         db.session.commit()
-        return "✅ تم حذف كل الفيديوهات القديمة والثقيلة والتي ليس بها صوت! الآن افتح رابط التوليد لإضافة الفيديوهات الجديدة."
+        return "✅ تم حذف كل الفيديوهات القديمة والثقيلة والتي ليس بها صوت بنجاح!"
+    except Exception as e:
+        db.session.rollback()
+        return f"حدث خطأ أثناء الحذف: {str(e)}"
     except Exception as e:
         db.session.rollback()
         return f"حدث خطأ: {str(e)}"
 
 @app.route('/generate_fake_data_secret')
-
 def generate_fake_data():
     try:
         if User.query.count() > 500: return "قاعدة البيانات ممتلئة جداً!"
@@ -538,9 +558,6 @@ def generate_fake_data():
         suffixes = ["gamer", "art", "vlogs", "music", "funny", "cooking", "sports", "tech", "travel", "lifestyle"]
         captions = ["شوفوا هذا الفيديو الرهيب! 🔥", "أفضل لحظة في حياتي ❤️", "لا تفوتوا هذا المشهد 😂", "تجربة جديدة وممتعة ✨", "استمتعوا بالمشاهدة 🎬", "ما رأيكم بهذا؟ 👀", "محتوى حصري لكم 💎", "شاركوني رأيكم بالتعليقات 👇", "كل يوم فيديو جديد 🚀", "أتمنى يعجبكم ❤️"]
         comments_pool = ["فيديو رائع جداً! 🔥", "استمر يا بطل 👏", "أفضل محتوى شفته اليوم ❤️", "متابعك من فلسطين 🇵🇸", "ههههههه مضحك كثير 😂", "ما شاء الله، إبداع!", "كيف سويت هذا؟", "أول مرة أشوف زي هيك", "جودة عالية جداً", "أتمنى لك التوفيق"]
-        
-        # جلب الفيديوهات المتاحة من القائمة
-        available_videos = eval(re.search(r'sample_videos = (\[.*?\])', code, re.DOTALL).group(1))
         
         users_to_add = []
         for i in range(10):
@@ -558,8 +575,7 @@ def generate_fake_data():
         video_index = 0
         for user in new_users:
             for _ in range(3):
-                # توزيع الفيديوهات بالتسلسل لمنع التكرار
-                vid_url = available_videos[video_index % len(available_videos)]
+                vid_url = VALID_VIDEOS[video_index % len(VALID_VIDEOS)]
                 video_index += 1
                 v = Video(filename=vid_url, caption=random.choice(captions), user_id=user.id, views=random.randint(100, 50000), likes_count=random.randint(10, 5000))
                 videos_to_add.append(v)
@@ -577,7 +593,10 @@ def generate_fake_data():
         db.session.bulk_save_objects(comments_to_add)
         db.session.commit()
         
-        return f"🎉 تمت إضافة 10 حسابات و 30 فيديو جديد (بدون تكرار)!<br><br>عدد الحسابات الآن: {User.query.count()}<br>عدد الفيديوهات الآن: {Video.query.count()}"
+        return f"🎉 تمت إضافة 10 حسابات و 30 فيديو جديد (بدون تكرار) بنجاح!"
+    except Exception as e:
+        db.session.rollback()
+        return f"حدث خطأ أثناء التوليد: {str(e)}"
     except Exception as e:
         db.session.rollback()
         return f"حدث خطأ: {str(e)}"
