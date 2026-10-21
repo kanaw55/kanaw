@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import random
 import re
@@ -107,12 +107,34 @@ class Comment(db.Model):
     replies = db.relationship('Comment', backref=db.backref('parent', remote_side=[id]), lazy='dynamic', cascade="all, delete-orphan")
     liked_by = db.relationship('User', secondary=comment_likes, backref='liked_comments')
 
+
+group_member = db.Table('group_member',
+    db.Column('group_id', db.Integer, db.ForeignKey('chat_group.id'), primary_key=True),
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True)
+)
+
+class Story(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    media_url = db.Column(db.String(500), nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    user = db.relationship('User', backref='stories')
+
+class ChatGroup(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    creator_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    members = db.relationship('User', secondary=group_member, backref='chat_groups')
+
 class Message(db.Model):
+
     id = db.Column(db.Integer, primary_key=True)
     sender_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     receiver_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     content = db.Column(db.Text, nullable=False)
     message_type = db.Column(db.String(20), default='text')
+    group_id = db.Column(db.Integer, db.ForeignKey('chat_group.id'), nullable=True)
     reaction = db.Column(db.String(10), default=None)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     sender = db.relationship('User', foreign_keys=[sender_id], backref='sent_messages')
@@ -195,12 +217,12 @@ def index():
     if current_user.is_authenticated:
         followed_ids = [u.id for u in current_user.followed]
         if feed_type == 'following':
-            videos = Video.query.join(User).filter(Video.user_id.in_(followed_ids), ~Video.user_id.in_(blocked_ids)).all()
+            videos = Video.query.join(User).filter(Video.user_id.in_(followed_ids), ~Video.user_id.in_(blocked_ids)).order_by(db.func.random()).limit(30).all()
         else:
             videos = Video.query.join(User).filter(
                 (User.is_private == False) | (Video.user_id == current_user.id) | (Video.user_id.in_(followed_ids)),
                 ~Video.user_id.in_(blocked_ids)
-            ).all()
+            ).order_by(db.func.random()).limit(30).all()
         liked_vids = [v.id for v in current_user.liked_videos]
         saved_vids = [v.id for v in current_user.saved_videos]
         
@@ -211,11 +233,10 @@ def index():
             ~User.id.in_(blocked_ids)
         ).order_by(db.func.random()).limit(5).all()
     else:
-        videos = Video.query.join(User).filter(User.is_private == False).all()
+        videos = Video.query.join(User).filter(User.is_private == False).order_by(db.func.random()).limit(30).all()
         liked_vids, saved_vids = [], []
         suggested = User.query.order_by(db.func.random()).limit(5).all()
         
-    random.shuffle(videos)
     return render_template('index.html', videos=videos, liked_videos=liked_vids, saved_videos=saved_vids, feed_type=feed_type, suggested_users=suggested)
 
 @app.route('/trending')
@@ -509,8 +530,8 @@ def profile(username):
         if not user.is_private or (current_user.is_authenticated and (is_following or current_user.id == user.id)):
             can_view = True
 
-    videos = Video.query.filter_by(user_id=user.id).order_by(Video.id.desc()).all() if can_view else []
-    liked_vids = Video.query.join(likes).filter(likes.c.user_id == user.id).order_by(Video.id.desc()).all() if can_view else []
+    videos = Video.query.filter_by(user_id=user.id).order_by(Video.id.desc()).limit(50).all() if can_view else []
+    liked_vids = Video.query.join(likes).filter(likes.c.user_id == user.id).order_by(Video.id.desc()).limit(50).all() if can_view else []
     saved_vids = Video.query.join(saves).filter(saves.c.user_id == user.id).order_by(Video.id.desc()).all() if can_view and current_user.id == user.id else []
     
     total_likes = sum(v.likes_count for v in videos) if can_view else 0
@@ -597,11 +618,53 @@ def delete_video(video_id):
 @app.route('/inbox')
 @login_required
 def inbox():
-    sent = db.session.query(Message.receiver_id).filter(Message.sender_id == current_user.id)
-    received = db.session.query(Message.sender_id).filter(Message.receiver_id == current_user.id)
+    sent = db.session.query(Message.receiver_id).filter(Message.sender_id == current_user.id, Message.group_id == None)
+    received = db.session.query(Message.sender_id).filter(Message.receiver_id == current_user.id, Message.group_id == None)
     user_ids = set([id[0] for id in sent.all()] + [id[0] for id in received.all()])
     users = User.query.filter(User.id.in_(user_ids)).all()
-    return render_template('inbox.html', users=users)
+    groups = current_user.chat_groups
+    stories = Story.query.filter(Story.timestamp >= datetime.utcnow() - timedelta(days=1)).order_by(Story.timestamp.desc()).all()
+    return render_template('inbox.html', users=users, groups=groups, stories=stories)
+
+@app.route('/api/add_story', methods=['POST'])
+@login_required
+def add_story():
+    file = request.files.get('story')
+    if file:
+        res = cloudinary.uploader.upload(file, resource_type="image")
+        db.session.add(Story(user_id=current_user.id, media_url=res.get('secure_url')))
+        db.session.commit()
+        return jsonify({'success': True})
+    return jsonify({'success': False}), 400
+
+@app.route('/api/create_group', methods=['POST'])
+@login_required
+def create_group():
+    data = request.get_json()
+    group_name = data.get('name')
+    if group_name:
+        group = ChatGroup(name=group_name, creator_id=current_user.id)
+        group.members.append(current_user)
+        db.session.add(group)
+        db.session.commit()
+        return jsonify({'success': True, 'group_id': group.id})
+    return jsonify({'success': False}), 400
+
+@app.route('/chat_group/<int:group_id>', methods=['GET', 'POST'])
+@login_required
+def chat_group(group_id):
+    group = ChatGroup.query.get_or_404(group_id)
+    if current_user not in group.members: return "غير مصرح", 403
+    
+    if request.method == 'POST':
+        content = request.form.get('content')
+        if content:
+            db.session.add(Message(sender_id=current_user.id, content=content, group_id=group.id))
+            db.session.commit()
+            return redirect(url_for('chat_group', group_id=group.id))
+            
+    messages = Message.query.filter_by(group_id=group.id).order_by(Message.timestamp.asc()).all()
+    return render_template('chat.html', other_user=None, group=group, messages=messages)
 
 @app.route('/chat/<username>', methods=['GET', 'POST'])
 @login_required

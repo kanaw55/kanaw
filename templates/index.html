@@ -82,6 +82,17 @@
         .offline-badge.show { display: block; }
         @keyframes dropDown { from { top: 30px; } to { top: 60px; } }
     </style>
+
+    <style>
+        .light-mode { background-color: #f5f5f5 !important; color: #000 !important; }
+        .light-mode .top-nav { background: linear-gradient(to bottom, rgba(255,255,255,0.8), transparent) !important; }
+        .light-mode .bottom-nav { background: #fff !important; border-top: 1px solid #ddd !important; }
+        .light-mode .bottom-nav a { color: #555 !important; }
+        .light-mode .bottom-nav a.active { color: #fe2c55 !important; }
+        .light-mode .video-info p, .light-mode .video-info a { color: #000 !important; text-shadow: none !important; }
+        .light-mode .action i { filter: drop-shadow(0 0 2px white); }
+    </style>
+    
 </head>
 <body>
     <div class="offline-badge" id="offlineBadge">أنت غير متصل بالإنترنت</div>
@@ -106,15 +117,15 @@
         {% endif %}
     </div>
 
-    <div class="top-nav">
-        <div class="feed-tabs">
+    <div class="top-nav" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);">
+        <div class="feed-tabs" style="position: absolute; left: 50%; transform: translateX(-50%);">
             <a href="/?feed=following" class="feed-tab {% if feed_type == 'following' %}active{% endif %}">أتابع</a>
             <a href="/?feed=foryou" class="feed-tab {% if feed_type == 'foryou' %}active{% endif %}">لك</a>
         </div>
         <div class="top-icons">
             <div style="display:flex;">
                 {% if current_user.is_authenticated %}
-                    <label for="directUpload" class="upload-label" style="margin-right: 15px;">رفع +</label>
+                    
                     <input type="file" id="directUpload" accept="video/*" style="display: none;" onchange="promptCaptionAndUpload(this)">
                 {% endif %}
             </div>
@@ -124,7 +135,11 @@
                         <a href="/notifications" style="color:white; text-decoration:none;"><i class="fa-solid fa-bell"></i></a>
                         <span class="notif-badge" id="notifBadge">{{ unread_notifications }}</span>
                     </div>
-                    <a href="/search" style="margin-right: 15px; color:white; text-decoration:none;"><i class="fa-solid fa-magnifying-glass"></i></a>
+                    <a href="javascript:void(0)" onclick="toggleTheme()" style="margin-right: 15px; color:white; text-decoration:none;"><i class="fa-solid fa-moon" id="themeIcon"></i></a>
+        {% if current_user.is_admin %}
+        <a href="/admin" style="margin-right: 15px; color:#f5c518; text-decoration:none;" title="لوحة التحكم"><i class="fa-solid fa-shield-halved"></i></a>
+        {% endif %}
+        <a href="/search" style="margin-right: 15px; color:white; text-decoration:none;"><i class="fa-solid fa-magnifying-glass"></i></a>
                     <a href="/inbox" style="margin-right: 10px; color:white; text-decoration:none;"><i class="fa-solid fa-envelope"></i></a>
                     <a href="/profile/{{ current_user.username }}" style="margin-left: 15px; color:white; text-decoration:none;"><i class="fa-solid fa-user"></i></a>
                 {% else %}
@@ -134,25 +149,13 @@
         </div>
     </div>
 
-    <div style="position: absolute; top: 70px; width: 100%; z-index: 8; overflow-x: auto; white-space: nowrap; padding: 10px 15px; display: flex; gap: 15px; pointer-events: auto; scrollbar-width: none;" id="suggestedBar">
-        {% if suggested_users %}
-            {% for s_user in suggested_users %}
-            <a href="/profile/{{ s_user.username }}" style="text-decoration: none; display: inline-block; text-align: center; color: white;">
-                <div style="width: 50px; height: 50px; border-radius: 50%; background: #333; border: 2px solid #fe2c55; overflow: hidden; display: flex; justify-content: center; align-items: center; margin: 0 auto 5px;">
-                    {% if s_user.profile_pic %}<img src="{{ s_user.profile_pic }}" style="width:100%; height:100%; object-fit:cover;">{% else %}👤{% endif %}
-                </div>
-                <div style="font-size: 11px; font-weight: bold; max-width: 60px; overflow: hidden; text-overflow: ellipsis;">@{{ s_user.username }}</div>
-            </a>
-            {% endfor %}
-        {% endif %}
-    </div>
     <div class="video-feed" id="videoFeed" style="padding-top: 10px;">
         {% for video in videos %}
         <div class="video-container" data-video-id="{{ video.id }}">
             <div class="video-spinner" id="spinner-{{ video.id }}"></div>
             <video src="{{ video.filename }}" loop playsinline muted preload="auto" 
                    poster="{{ video.filename|replace('.mp4', '.jpg') }}"
-                   onclick="handleVideoClick(this, {{ video.id }})" 
+                   onclick="handleVideoClick(this, {{ video.id }}); handleDoubleTapSeek(this);" 
                    onwaiting="document.getElementById('spinner-{{ video.id }}').style.display='block'" 
                    onplaying="document.getElementById('spinner-{{ video.id }}').style.display='none'"
                    oncanplay="document.getElementById('spinner-{{ video.id }}').style.display='none'"></video>
@@ -213,7 +216,6 @@
     <div class="bottom-nav">
         <a href="/" class="active"><i class="fa-solid fa-house"></i> الرئيسية</a>
         <a href="/trending"><i class="fa-solid fa-fire" style="color:#f5c518;"></i> الترند</a>
-        <a href="/search"><i class="fa-solid fa-magnifying-glass"></i> بحث</a>
         <label for="directUpload" style="color:#888; display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; font-size:12px;">
             <i class="fa-solid fa-circle-plus" style="font-size:24px;"></i>
         </label>
@@ -587,6 +589,50 @@
                     if(data.success) alert('شكراً لك، تم استلام البلاغ وسيتم مراجعته.');
                 });
             }
+        }
+    </script>
+    
+
+    <script>
+        // الوضع الليلي
+        function toggleTheme() {
+            const body = document.body;
+            body.classList.toggle('light-mode');
+            const isLight = body.classList.contains('light-mode');
+            localStorage.setItem('theme', isLight ? 'light' : 'dark');
+            document.getElementById('themeIcon').className = isLight ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+        }
+        if (localStorage.getItem('theme') === 'light') {
+            document.body.classList.add('light-mode');
+            setTimeout(() => { if(document.getElementById('themeIcon')) document.getElementById('themeIcon').className = 'fa-solid fa-sun'; }, 100);
+        }
+
+        // السحب للتحديث
+        let touchStartY = 0;
+        document.addEventListener('touchstart', e => { touchStartY = e.touches[0].clientY; });
+        document.addEventListener('touchend', e => {
+            const touchEndY = e.changedTouches[0].clientY;
+            if (touchEndY - touchStartY > 150 && window.scrollY === 0) {
+                window.location.reload();
+            }
+        });
+
+        // صوت الإشعارات (محاكاة)
+        function playNotifSound() {
+            const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+            audio.volume = 0.5;
+            audio.play().catch(e=>{});
+        }
+        
+        // التقديم المزدوج
+        let lastTap = 0;
+        function handleDoubleTapSeek(video) {
+            const currentTime = new Date().getTime();
+            const tapLength = currentTime - lastTap;
+            if (tapLength < 300 && tapLength > 0) {
+                video.currentTime += 5; // تقديم 5 ثواني
+            }
+            lastTap = currentTime;
         }
     </script>
     

@@ -99,6 +99,12 @@
         </div>
         <div class="username-title">@{{ user.username }} {% if user.is_verified %}<i class="fa-solid fa-circle-check" style="color: #1DA1F2; font-size: 16px;"></i>{% endif %} {% if user.is_private %} <i class="fa-solid fa-lock" style="font-size: 16px; color: #aaa;"></i> {% endif %}</div>
         <div class="bio-text">{{ user.bio }}</div>
+        {% if current_user.is_authenticated and current_user.id == user.id %}
+            <button onclick="openBioModal()" style="background:none; border:1px solid #555; color:#aaa; padding:5px 10px; border-radius:5px; font-size:12px; cursor:pointer; margin-bottom:10px;">تعديل السيرة الذاتية</button>
+        {% endif %}
+        {% if user.bio_link %}
+            <div style="margin-bottom:15px;"><a href="{{ user.bio_link }}" target="_blank" style="color:#00f2ea; text-decoration:none;"><i class="fa-solid fa-link"></i> {{ user.bio_link }}</a></div>
+        {% endif %}
 
         <div class="stats">
             <a href="/profile/{{ user.username }}/following" class="stat-box"><h3>{{ following_count }}</h3><p>يتابع</p></a>
@@ -110,6 +116,7 @@
             {% if current_user.is_authenticated and current_user.id == user.id %}
                 <button onclick="openEditModal()" class="btn" style="background:#333;"><i class="fa-solid fa-pen"></i> تعديل</button>
                 <button onclick="shareProfile('{{ user.username }}')" class="btn" style="background:#333;"><i class="fa-solid fa-share"></i> مشاركة</button>
+                <button onclick="showQR()" class="btn" style="background:#333;"><i class="fa-solid fa-qrcode"></i> QR</button>
             {% elif current_user.is_authenticated and current_user.id != user.id %}
                 <a href="/toggle_follow/{{ user.id }}" class="btn" style="background:{% if is_following %}#333{% elif has_requested %}#ff9800{% else %}#fe2c55{% endif %};">
                     {% if is_following %} متابَع {% elif has_requested %} معلق {% else %} متابعة {% endif %}
@@ -225,5 +232,58 @@
             else { navigator.clipboard.writeText(url).then(() => alert('تم نسخ رابط الحساب!')).catch(() => prompt('انسخ الرابط:', url)); }
         }
     </script>
+
+    <div class="edit-modal-backdrop" id="qrBackdrop" onclick="closeQR()"></div>
+    <div class="edit-modal" id="qrModal" style="text-align:center;">
+        <h3>رمز QR لملفك الشخصي</h3>
+        <img id="qrImage" src="" style="width:200px; height:200px; margin:0 auto; background:white; padding:10px; border-radius:10px;">
+        <p style="color:#888; margin-top:10px;">امسح الرمز لمتابعة @{{ user.username }}</p>
+        <button onclick="closeQR()" class="btn btn-cancel" style="width:100%;">إغلاق</button>
+    </div>
+    
+    <div class="edit-modal-backdrop" id="editBioBackdrop" onclick="closeBioModal()"></div>
+    <div class="edit-modal" id="editBioModal">
+        <h3>تعديل السيرة الذاتية</h3>
+        <textarea id="bioText" style="width:100%; height:80px; background:#333; color:white; border:none; border-radius:8px; padding:10px; margin-bottom:10px;">{{ user.bio }}</textarea>
+        <input type="url" id="bioLink" placeholder="رابط (مثال: https://google.com)" value="{{ user.bio_link or '' }}" style="width:100%; background:#333; color:white; border:none; border-radius:8px; padding:10px; margin-bottom:10px;">
+        <div class="edit-modal-actions">
+            <button type="button" class="btn-cancel" onclick="closeBioModal()">إلغاء</button>
+            <button type="button" class="btn-save" onclick="saveBio()">حفظ</button>
+        </div>
+    </div>
+    
+
+    <script>
+        function showQR() {
+            document.getElementById('qrBackdrop').classList.add('active');
+            document.getElementById('qrModal').classList.add('active');
+            document.getElementById('qrImage').src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + window.location.href;
+        }
+        function closeQR() {
+            document.getElementById('qrBackdrop').classList.remove('active');
+            document.getElementById('qrModal').classList.remove('active');
+        }
+        
+        function openBioModal() {
+            document.getElementById('editBioBackdrop').classList.add('active');
+            document.getElementById('editBioModal').classList.add('active');
+        }
+        function closeBioModal() {
+            document.getElementById('editBioBackdrop').classList.remove('active');
+            document.getElementById('editBioModal').classList.remove('active');
+        }
+        function saveBio() {
+            const bio = document.getElementById('bioText').value;
+            const link = document.getElementById('bioLink').value;
+            fetch('/api/update_bio', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({bio: bio, bio_link: link})
+            }).then(res => res.json()).then(data => {
+                if(data.success) window.location.reload();
+            });
+        }
+    </script>
+    
 </body>
 </html>

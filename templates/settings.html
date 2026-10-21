@@ -45,6 +45,25 @@
             </label>
         </div>
         <button type="submit">حفظ التغييرات</button>
+    
+        <div class="switch-container" style="margin-top:15px;">
+            <div>
+                <strong>إخفاء الإعجابات (Hide Likes)</strong>
+                <p style="color:#aaa; font-size:12px; margin-top:5px;">لن تظهر أعداد الإعجابات في الفيديوهات.</p>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="hideLikesToggle" {% if current_user.hide_likes %}checked{% endif %} onchange="toggleHideLikes(this)">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <script>
+            function toggleHideLikes(el) {
+                fetch('/api/toggle_hide_likes', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => { if(!data.success) el.checked = !el.checked; });
+            }
+        </script>
+    
     </form>
 
     <div class="settings-box" style="margin-top: 20px;">
@@ -53,7 +72,26 @@
             <input type="password" name="old_password" placeholder="كلمة المرور القديمة" required style="width:100%; padding:10px; margin-bottom:10px; background:#333; border:none; border-radius:8px; color:white;">
             <input type="password" name="new_password" placeholder="كلمة المرور الجديدة" required style="width:100%; padding:10px; margin-bottom:15px; background:#333; border:none; border-radius:8px; color:white;">
             <button type="submit" style="width:100%; padding:12px; background:#fe2c55; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">تحديث كلمة المرور</button>
-        </form>
+        
+        <div class="switch-container" style="margin-top:15px;">
+            <div>
+                <strong>إخفاء الإعجابات (Hide Likes)</strong>
+                <p style="color:#aaa; font-size:12px; margin-top:5px;">لن تظهر أعداد الإعجابات في الفيديوهات.</p>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="hideLikesToggle" {% if current_user.hide_likes %}checked{% endif %} onchange="toggleHideLikes(this)">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <script>
+            function toggleHideLikes(el) {
+                fetch('/api/toggle_hide_likes', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => { if(!data.success) el.checked = !el.checked; });
+            }
+        </script>
+    
+    </form>
     </div>
     
 </body>
