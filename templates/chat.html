@@ -58,10 +58,13 @@
         {% endfor %}
     </div>
 
-    <form class="input-area" method="POST">
+    {% if group and group.restrict_send_messages and not is_admin %}
+        <div style="background:#222; padding:20px; text-align:center; color:#888; border-top:1px solid #333;">المجموعة مغلقة، فقط المشرفون يمكنهم إرسال الرسائل.</div>
+    {% else %}
+        <form class="input-area" method="POST">
         <input type="text" name="content" placeholder="اكتب رسالة..." required autocomplete="off">
         <button type="submit"><i class="fa-solid fa-paper-plane"></i></button>
-    </form>
+    </form>{% endif %}
     <script> const chatBox = document.getElementById('chatBox'); chatBox.scrollTop = chatBox.scrollHeight; </script>
 </body>
 </html>

@@ -109,6 +109,9 @@ class ChatGroup(db.Model):
     description = db.Column(db.Text, default='مرحباً بكم في المجموعة!')
     group_pic = db.Column(db.String(500), default=None)
     join_approval = db.Column(db.Boolean, default=False)
+    restrict_edit_info = db.Column(db.Boolean, default=False)
+    restrict_send_messages = db.Column(db.Boolean, default=False)
+    restrict_add_members = db.Column(db.Boolean, default=False)
 
 class Message(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -247,8 +250,51 @@ def update_group_info(group_id):
     db.session.commit()
     return redirect(url_for('group_info', group_id=group_id))
 
-@app.route('/group_info/<int:group_id>')
 
+@app.route('/group/<int:group_id>/add_member/<int:user_id>', methods=['POST'])
+@login_required
+def add_group_member(group_id, user_id):
+    group = ChatGroup.query.get_or_404(group_id)
+    if current_user in group.admins or (not group.restrict_add_members and current_user in group.members):
+        user = User.query.get(user_id)
+        if user and user not in group.members:
+            group.members.append(user)
+            db.session.commit()
+    return redirect(url_for('group_info', group_id=group_id))
+
+@app.route('/group/<int:group_id>/leave', methods=['POST'])
+@login_required
+def leave_group(group_id):
+    group = ChatGroup.query.get_or_404(group_id)
+    if current_user in group.members and current_user.id != group.creator_id:
+        group.members.remove(current_user)
+        if current_user in group.admins:
+            group.admins.remove(current_user)
+        db.session.commit()
+        return redirect(url_for('inbox'))
+    return redirect(url_for('group_info', group_id=group_id))
+
+
+@app.route('/group/<int:group_id>/update_permissions', methods=['POST'])
+@login_required
+def update_group_permissions(group_id):
+    group = ChatGroup.query.get_or_404(group_id)
+    if current_user.id != group.creator_id: return "غير مصرح", 403
+    
+    group.restrict_edit_info = True if request.form.get('restrict_edit_info') == 'on' else False
+    group.restrict_send_messages = True if request.form.get('restrict_send_messages') == 'on' else False
+    group.restrict_add_members = True if request.form.get('restrict_add_members') == 'on' else False
+    db.session.commit()
+    return redirect(url_for('group_info', group_id=group_id))
+
+@app.route('/group/<int:group_id>/clear_chat', methods=['POST'])
+@login_required
+def clear_chat(group_id):
+    group = ChatGroup.query.get_or_404(group_id)
+    if current_user not in group.admins: return "غير مصرح", 403
+    Message.query.filter_by(group_id=group.id).delete()
+    db.session.commit()
+    return redirect(url_for('chat_group', group_id=group_id))
 
 @app.route('/group_info/<int:group_id>')
 
@@ -259,7 +305,17 @@ def group_info(group_id):
     if not group.invite_code:
         group.invite_code = str(uuid.uuid4())[:8]
         db.session.commit()
-    return render_template('group_info.html', group=group)
+        
+    # جلب الأصدقاء (الذين أتابعهم) والذين ليسوا في المجموعة
+    friends_not_in_group = [u for u in current_user.followed if u not in group.members]
+    
+    # جلب طلبات الانضمام
+    join_requests = GroupJoinRequest.query.filter_by(group_id=group.id).all()
+    
+    return render_template('group_info.html', group=group, friends_not_in_group=friends_not_in_group, group_join_requests=join_requests, is_admin=(current_user in group.admins))
+
+@app.route('/group/<int:group_id>/update_info', methods=['POST'])
+
 
 @app.route('/join_group/<string:code>')
 @login_required
@@ -345,18 +401,26 @@ def kick_member(group_id, user_id):
     return redirect(url_for('group_info', group_id=group_id))
 
 @app.route('/chat_group/<int:group_id>', methods=['GET', 'POST'])
-
 @login_required
 def chat_group(group_id):
     group = ChatGroup.query.get_or_404(group_id)
+    if current_user not in group.members: return "غير مصرح", 403
+    
+    is_admin = current_user in group.admins
+    
     if request.method == 'POST':
+        if group.restrict_send_messages and not is_admin:
+            flash('المجموعة مغلقة، فقط المشرفون يمكنهم إرسال الرسائل.')
+            return redirect(url_for('chat_group', group_id=group.id))
+            
         content = request.form.get('content')
         if content:
             db.session.add(Message(sender_id=current_user.id, content=content, group_id=group.id))
             db.session.commit()
             return redirect(url_for('chat_group', group_id=group.id))
+            
     messages = Message.query.filter_by(group_id=group.id).order_by(Message.timestamp.asc()).all()
-    return render_template('chat.html', other_user=None, group=group, messages=messages)
+    return render_template('chat.html', other_user=None, group=group, messages=messages, is_admin=is_admin)
 
 @app.route('/api/add_story', methods=['POST'])
 @login_required
