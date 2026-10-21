@@ -44,6 +44,11 @@ likes = db.Table('likes',
     db.Column('video_id', db.Integer, db.ForeignKey('video.id'), primary_key=True)
 )
 
+comment_likes = db.Table('comment_likes',
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
+    db.Column('comment_id', db.Integer, db.ForeignKey('comment.id'), primary_key=True)
+)
+
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
@@ -77,7 +82,12 @@ class Comment(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     video_id = db.Column(db.Integer, db.ForeignKey('video.id'))
+    parent_id = db.Column(db.Integer, db.ForeignKey('comment.id'), nullable=True)
+    likes_count = db.Column(db.Integer, default=0)
+    
     user = db.relationship('User', backref='comments')
+    replies = db.relationship('Comment', backref=db.backref('parent', remote_side=[id]), lazy='dynamic', cascade="all, delete-orphan")
+    liked_by = db.relationship('User', secondary=comment_likes, backref='liked_comments')
 
 class Message(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -198,25 +208,70 @@ def upload_direct():
             return jsonify({'success': False, 'error': str(e)}), 500
     return jsonify({'success': False, 'error': 'No file'}), 400
 
+# --- مسارات التعليقات الجديدة ---
 @app.route('/api/comments/<int:video_id>')
 def get_comments(video_id):
-    comments = Comment.query.filter_by(video_id=video_id).order_by(Comment.timestamp.desc()).all()
-    return jsonify([{'id': c.id, 'content': c.content, 'user': c.user.username, 'time': c.timestamp.strftime('%Y-%m-%d %H:%M')} for c in comments])
+    # جلب التعليقات الرئيسية فقط (بدون ردود)
+    comments = Comment.query.filter_by(video_id=video_id, parent_id=None).order_by(Comment.timestamp.desc()).all()
+    
+    def serialize_comment(c):
+        return {
+            'id': c.id,
+            'content': c.content,
+            'user': c.user.username,
+            'user_pic': c.user.profile_pic,
+            'likes': c.likes_count,
+            'is_liked': current_user.is_authenticated and current_user in c.liked_by,
+            'time': c.timestamp.strftime('%Y-%m-%d %H:%M'),
+            'replies': [serialize_comment(r) for r in c.replies.order_by(Comment.timestamp.asc()).all()]
+        }
+    
+    return jsonify([serialize_comment(c) for c in comments])
 
 @app.route('/api/comment/<int:video_id>', methods=['POST'])
 @login_required
 def api_add_comment(video_id):
     data = request.get_json()
-    content = data.get('content') if data else None
+    content = data.get('content')
+    parent_id = data.get('parent_id')
+    
     if content:
         try:
-            comment = Comment(content=content, user_id=current_user.id, video_id=video_id)
+            comment = Comment(content=content, user_id=current_user.id, video_id=video_id, parent_id=parent_id)
             db.session.add(comment)
+            # إرسال إشعار لصاحب الفيديو أو صاحب التعليق الأصلي
+            target_user_id = video_id 
+            if parent_id:
+                parent_comment = Comment.query.get(parent_id)
+                target_user_id = parent_comment.user_id
+            else:
+                video = Video.query.get(video_id)
+                target_user_id = video.user_id
+                
+            if target_user_id != current_user.id:
+                db.session.add(Notification(user_id=target_user_id, sender_id=current_user.id, type='comment'))
+                
             db.session.commit()
             return jsonify({'success': True})
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
     return jsonify({'success': False, 'error': 'Empty'}), 400
+
+@app.route('/api/comment/like/<int:comment_id>', methods=['POST'])
+@login_required
+def api_like_comment(comment_id):
+    comment = Comment.query.get_or_404(comment_id)
+    if current_user in comment.liked_by:
+        comment.liked_by.remove(current_user)
+        comment.likes_count -= 1
+        is_liked = False
+    else:
+        comment.liked_by.append(current_user)
+        comment.likes_count += 1
+        is_liked = True
+        
+    db.session.commit()
+    return jsonify({'success': True, 'likes': comment.likes_count, 'is_liked': is_liked})
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -308,7 +363,6 @@ def profile(username):
     following_count = user.followed.count()
     return render_template('profile.html', user=user, videos=videos, liked_vids=liked_vids, total_likes=total_likes, is_following=is_following, has_requested=has_requested, can_view=can_view, followers_count=followers_count, following_count=following_count)
 
-# مسارات المتابعين
 @app.route('/profile/<username>/followers')
 def followers_list(username):
     user = User.query.filter_by(username=username).first_or_404()
