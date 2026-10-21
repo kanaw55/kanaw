@@ -157,19 +157,27 @@
         document.addEventListener("DOMContentLoaded", function() {
             setupVideoObservers();
             
-            // التمرير اللانهائي
+            // التمرير اللانهائي (محمي من التكرار)
             const feed = document.getElementById('videoFeed');
+            let noMoreVideos = false;
+            
             feed.addEventListener('scroll', function() {
-                if (feed.scrollTop + feed.clientHeight >= feed.scrollHeight - 200 && !isLoadingMore) {
+                if (feed.scrollTop + feed.clientHeight >= feed.scrollHeight - 300 && !isLoadingMore && !noMoreVideos) {
                     isLoadingMore = true;
                     fetch('/api/load_more')
                         .then(res => res.text())
                         .then(html => {
-                            feed.insertAdjacentHTML('beforeend', html);
-                            setupVideoObservers(); // إعادة تفعيل المراقبة للفيديوهات الجديدة
-                            isLoadingMore = false;
+                            if (html.trim() === "") {
+                                noMoreVideos = true; // إذا لم تعد هناك فيديوهات، أوقف التحديث
+                            } else {
+                                feed.insertAdjacentHTML('beforeend', html);
+                                setupVideoObservers();
+                            }
                         })
-                        .catch(() => { isLoadingMore = false; });
+                        .catch(() => {})
+                        .finally(() => {
+                            isLoadingMore = false; // مهم جداً: إعادة تعيين الحالة
+                        });
                 }
             });
         });

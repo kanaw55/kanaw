@@ -161,7 +161,11 @@ def index():
 def load_more():
     blocked_ids = [u.id for u in current_user.blocked_users] if current_user.is_authenticated else []
     videos = Video.query.join(User).filter(User.is_private == False, ~Video.user_id.in_(blocked_ids)).order_by(db.func.random()).limit(30).all()
-    return render_template('_video.html', videos=videos, liked_videos=[])
+    liked_vids = [v.id for v in current_user.liked_videos] if current_user.is_authenticated else []
+    saved_vids = [v.id for v in current_user.saved_videos] if current_user.is_authenticated else []
+    if not videos:
+        return "" # إرجاع نص فارغ إذا لم توجد فيديوهات
+    return render_template('_video.html', videos=videos, liked_videos=liked_vids, saved_videos=saved_vids)
 
 @app.route('/trending')
 def trending():
@@ -511,7 +515,7 @@ def generate_fake_data():
     comments_pool = ["فيديو رائع جداً! 🔥", "استمر يا بطل 👏", "أفضل محتوى شفته اليوم ❤️", "متابعك من فلسطين 🇵🇸", "ههههههه مضحك كثير 😂", "ما شاء الله، إبداع!", "كيف سويت هذا؟", "أول مرة أشوف زي هيك", "جودة عالية جداً", "أتمنى لك التوفيق", "أنت الأفضل!", "أضفتك للمفضلة ⭐", "منتظر جديدك", "شكراً على المحتوى", "الله يعطيك العافية"]
     
     users_to_add = []
-    for i in range(1000):
+    for i in range(20):
         name = f"{random.choice(first_names)}_{random.choice(suffixes)}{random.randint(100, 99999)}"
         user = User(username=name, bio=f"مرحباً، أنا {name}! أشارككم محتواي هنا ✨", profile_pic=f"https://i.pravatar.cc/150?u={random.randint(1, 1000)}")
         user.set_password("123456"); users_to_add.append(user)
@@ -520,7 +524,7 @@ def generate_fake_data():
     all_users = User.query.all()
     videos_to_add = []
     for user in all_users:
-        for _ in range(3):
+        for _ in range(1):
             v = Video(filename=random.choice(sample_videos), caption=random.choice(captions), user_id=user.id, views=random.randint(100, 50000), likes_count=random.randint(10, 5000))
             videos_to_add.append(v)
     db.session.add_all(videos_to_add); db.session.commit()
