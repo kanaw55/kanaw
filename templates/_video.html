@@ -1,7 +1,7 @@
 {% for video in videos %}
 <div class="video-container" data-video-id="{{ video.id }}">
     <div class="video-spinner" id="spinner-{{ video.id }}"></div>
-    <video src="{{ video.filename }}" loop playsinline webkit-playsinline preload="auto" {% if 'cloudinary' in video.filename %}poster="{{ video.filename|replace('.mp4', '.jpg') }}"{% endif %} onclick="handleVideoClick(this, {{ video.id }})" onwaiting="document.getElementById('spinner-{{ video.id }}').style.display='block'" onplaying="document.getElementById('spinner-{{ video.id }}').style.display='none'" oncanplay="document.getElementById('spinner-{{ video.id }}').style.display='none'"></video>
+    <video src="{{ video.filename }}" loop playsinline webkit-playsinline muted preload="auto" {% if 'cloudinary' in video.filename %}poster="{{ video.filename|replace('.mp4', '.jpg') }}"{% endif %} onclick="handleVideoClick(this, {{ video.id }})" onwaiting="document.getElementById('spinner-{{ video.id }}').style.display='block'" onplaying="document.getElementById('spinner-{{ video.id }}').style.display='none'" oncanplay="this.muted=true; this.play().catch(e=>{}); document.getElementById('spinner-{{ video.id }}').style.display='none'"></video>
     <i class="fa-solid fa-heart heart-pop" id="heart-{{ video.id }}"></i>
     
     <button class="mute-btn" onclick="toggleGlobalMute()" style="position: absolute; top: 70px; left: 15px; background: rgba(0,0,0,0.7); color: white; border: 2px solid white; width: 45px; height: 45px; border-radius: 50%; font-size: 20px; z-index: 10; cursor: pointer;"><i class="fa-solid fa-volume-xmark"></i></button>

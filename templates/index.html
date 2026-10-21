@@ -133,22 +133,7 @@
         let isMuted = true, viewedVideos = JSON.parse(localStorage.getItem('viewed_videos') || '[]'), currentVideoId = null, currentParentId = null, shareVideoId = null;
         let isLoadingMore = false;
 
-        // تحميل الفيديو التالي مسبقاً لسرعة الانتقال (مثل تيك توك)
-        function preloadNextVideo(currentVideo) {
-            const containers = document.querySelectorAll('.video-container');
-            for (let i = 0; i < containers.length; i++) {
-                if (containers[i].contains(currentVideo)) {
-                    const nextContainer = containers[i + 1];
-                    if (nextContainer) {
-                        const nextVideo = nextContainer.querySelector('video');
-                        if (nextVideo && nextVideo.preload !== 'auto') {
-                            nextVideo.preload = 'auto'; // ابدأ بتحميل الفيديو التالي في الخلفية
-                        }
-                    }
-                    break;
-                }
-            }
-        }
+        
 
 
         function updateOnlineStatus() { const badge = document.getElementById('offlineBadge'); if (badge) { if (navigator.onLine) badge.classList.remove('show'); else badge.classList.add('show'); } }
@@ -175,28 +160,7 @@
         document.addEventListener("DOMContentLoaded", function() {
             setupVideoObservers();
             
-            // التمرير اللانهائي (محسن لمنع التعليق)
-        const feed = document.getElementById('videoFeed');
-        let noMoreVideos = false;
-        
-        feed.addEventListener('scroll', function() {
-            if (feed.scrollTop + feed.clientHeight >= feed.scrollHeight - 500 && !isLoadingMore && !noMoreVideos) {
-                isLoadingMore = true;
-                fetch('/api/load_more')
-                    .then(res => res.text())
-                    .then(html => {
-                        if (html.trim() === "") {
-                            noMoreVideos = true;
-                        } else {
-                            feed.insertAdjacentHTML('beforeend', html);
-                            setupVideoObservers();
-                        }
-                    })
-                    .catch(() => {})
-                    .finally(() => { 
-                        // انتظار ثانية كاملة قبل السماح بجلب المزيد
-                        setTimeout(() => { isLoadingMore = false; }, 1000); 
-                    });
+            // تم إزالة التحديث اللانهائي لتسريع التطبيق
             }
         });
                 }
