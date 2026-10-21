@@ -130,6 +130,24 @@ def index():
     random.shuffle(videos)
     return render_template('index.html', videos=videos, liked_videos=liked_vids)
 
+# --- مسار البحث الجديد ---
+@app.route('/search')
+def search():
+    query = request.args.get('q', '').strip()
+    users = []
+    videos = []
+    
+    if query:
+        # البحث عن مستخدمين (تطابق جزئي)
+        users = User.query.filter(User.username.ilike(f'%{query}%')).all()
+        # البحث عن فيديوهات (تطابق جزئي في الوصف)
+        videos = Video.query.join(User).filter(
+            (Video.caption.ilike(f'%{query}%')) & 
+            ((User.is_private == False) | (Video.user_id == current_user.id) if current_user.is_authenticated else User.is_private == False)
+        ).all()
+
+    return render_template('search.html', query=query, users=users, videos=videos)
+
 @app.route('/api/view/<int:video_id>', methods=['POST'])
 def api_view(video_id):
     video = Video.query.get_or_404(video_id)
@@ -145,12 +163,10 @@ def api_like(video_id):
         return jsonify({'success': False, 'msg': 'Cannot like own video'})
         
     if current_user in video.liked_by:
-        # إزالة اللايك
         video.liked_by.remove(current_user)
         video.likes_count -= 1
         is_liked = False
     else:
-        # إضافة اللايك
         video.liked_by.append(current_user)
         video.likes_count += 1
         db.session.add(Notification(user_id=video.user_id, sender_id=current_user.id, type='like'))
