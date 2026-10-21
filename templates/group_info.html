@@ -155,6 +155,15 @@
 
     <div class="group-desc">{{ group.description }}</div>
 
+    {% if current_user.id == group.creator_id or (current_user in group.admins and not group.restrict_edit_info) %}
+    <div style="text-align: center; margin: 10px 0;">
+        <button onclick="openEditModal()" style="background: #333; color: white; border: 1px solid #555; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: bold; font-size: 14px;">
+            <i class="fa-solid fa-pen"></i> تعديل معلومات المجموعة
+        </button>
+    </div>
+    {% endif %}
+    
+
     <!-- رابط الدعوة -->
     <div class="section">
         <div class="section-title">رابط الدعوة</div>
@@ -251,5 +260,20 @@
         function openAddModal() { document.getElementById('addMemberBackdrop').classList.add('active'); document.getElementById('addMemberModal').classList.add('active'); }
         function closeAddModal() { document.getElementById('addMemberBackdrop').classList.remove('active'); document.getElementById('addMemberModal').classList.remove('active'); }
     </script>
+
+    <script>
+        function previewImage(event) {
+            var reader = new FileReader();
+            reader.onload = function(){
+                var output = document.getElementById('previewImg');
+                var icon = document.getElementById('camIcon');
+                output.src = reader.result;
+                output.style.display = 'block';
+                if(icon) icon.style.display = 'none';
+            };
+            reader.readAsDataURL(event.target.files[0]);
+        }
+    </script>
+    
 </body>
 </html>

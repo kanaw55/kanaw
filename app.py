@@ -223,7 +223,24 @@ def inbox():
         user_ids = set([id[0] for id in sent.all()] + [id[0] for id in received.all()])
         users = User.query.filter(User.id.in_(user_ids)).all()
         groups = current_user.chat_groups
-        stories = Story.query.filter(Story.created_at >= datetime.utcnow() - timedelta(days=1)).order_by(Story.created_at.desc()).all()
+        
+        # جلب الأصدقاء المتبادلين (أتابعهم وهم يتابعونني) + نفسي
+        following_ids = [u.id for u in current_user.followed]
+        followers_ids = [u.id for u in current_user.followers]
+        mutual_ids = list(set(following_ids) & set(followers_ids))
+        mutual_ids.append(current_user.id)
+        
+        # جلب الحالات التي مر عليها أقل من 24 ساعة
+        raw_stories = Story.query.filter(Story.created_at >= datetime.utcnow() - timedelta(days=1), Story.user_id.in_(mutual_ids)).order_by(Story.created_at.desc()).all()
+        
+        # تجميع الحالات (نأخذ أحدث حالة لكل صديق لكي نعرضها في الدائرة)
+        stories = []
+        seen_users = set()
+        for s in raw_stories:
+            if s.user_id not in seen_users:
+                seen_users.add(s.user_id)
+                stories.append(s)
+
         return render_template('inbox.html', users=users, groups=groups, stories=stories)
     except:
         return render_template('inbox.html', users=[], groups=[], stories=[])
@@ -234,7 +251,11 @@ def inbox():
 @login_required
 def update_group_info(group_id):
     group = ChatGroup.query.get_or_404(group_id)
-    if current_user not in group.admins: return "غير مصرح", 403
+    
+    # التحقق من الصلاحية (مالك أو مشرف، بشرط ألا يكون هناك قفل إلا للمالك)
+    if current_user.id != group.creator_id:
+        if current_user not in group.admins or group.restrict_edit_info:
+            return "غير مصرح لك بتعديل معلومات المجموعة", 403
         
     if 'group_pic' in request.files:
         file = request.files['group_pic']
@@ -246,9 +267,11 @@ def update_group_info(group_id):
         group.description = request.form.get('description')
         
     group.join_approval = True if request.form.get('join_approval') == 'on' else False
-        
     db.session.commit()
     return redirect(url_for('group_info', group_id=group_id))
+
+@app.route('/group_info/<int:group_id>')
+
 
 
 @app.route('/group/<int:group_id>/add_member/<int:user_id>', methods=['POST'])

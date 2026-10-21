@@ -57,7 +57,7 @@
         <input type="file" id="storyInput" accept="image/*" style="display:none;" onchange="uploadStory(this)">
         
         {% for story in stories %}
-        <a href="#" class="story-item" onclick="viewStory('{{ story.media_url }}', '{{ story.user.username }}')">
+        <a href="#" class="story-item" onclick="viewStory('{{ story.media_url }}', '{{ story.user.username }}', '{{ story.user.profile_pic }}')">
             <div class="story-circle">
                 {% if story.user.profile_pic %}
                     <img src="{{ story.user.profile_pic }}">
@@ -117,10 +117,36 @@
 
     <script>
         // عرض القصة (بشكل مؤقت)
-        function viewStory(url, username) {
-            // في المستقبل يمكن عمل عارض قصص حقيقي، حالياً سنفتح الصورة
-            const win = window.open();
-            win.document.write(`<body style="margin:0;background:#000;display:flex;justify-content:center;align-items:center;height:100vh;"><img src="${url}" style="max-width:100%;max-height:100%;"><h2 style="position:absolute;top:20px;color:white;font-family:sans-serif;">@${username}</h2></body>`);
+        function viewStory(url, username, picUrl) {
+            document.getElementById('storyViewerModal').style.display = 'flex';
+            document.getElementById('storyImage').src = url;
+            document.getElementById('storyUsername').innerText = username;
+            if(picUrl) {
+                document.getElementById('storyUserPicContainer').innerHTML = `<img src="${picUrl}" style="width:100%;height:100%;object-fit:cover;">`;
+            } else {
+                document.getElementById('storyUserPicContainer').innerHTML = '👤';
+            }
+        }
+        
+        function closeStoryViewer() {
+            document.getElementById('storyViewerModal').style.display = 'none';
+            document.getElementById('storyImage').src = '';
+        }" style="max-width:100%;max-height:100%;"><h2 style="position:absolute;top:20px;color:white;font-family:sans-serif;">@${username}</h2>
+    <!-- نافذة عرض الحالات -->
+    <div id="storyViewerModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:99999; flex-direction:column;">
+        <div style="padding:15px; display:flex; justify-content:space-between; align-items:center; z-index:10; background:linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div id="storyUserPicContainer" style="width:35px;height:35px;border-radius:50%;overflow:hidden;background:#333;display:flex;justify-content:center;align-items:center; font-size:18px;">👤</div>
+                <span id="storyUsername" style="color:white;font-weight:bold; font-size:16px;"></span>
+            </div>
+            <button onclick="closeStoryViewer()" style="background:none;border:none;color:white;font-size:30px;cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div style="flex:1; display:flex; justify-content:center; align-items:center; position:relative;" onclick="closeStoryViewer()">
+            <img id="storyImage" src="" style="max-width:100%; max-height:100%; object-fit:contain;">
+        </div>
+    </div>
+    
+</body>`);
         }
 
         // رفع قصة
@@ -148,5 +174,20 @@
             }
         }
     </script>
+
+    <!-- نافذة عرض الحالات -->
+    <div id="storyViewerModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:99999; flex-direction:column;">
+        <div style="padding:15px; display:flex; justify-content:space-between; align-items:center; z-index:10; background:linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div id="storyUserPicContainer" style="width:35px;height:35px;border-radius:50%;overflow:hidden;background:#333;display:flex;justify-content:center;align-items:center; font-size:18px;">👤</div>
+                <span id="storyUsername" style="color:white;font-weight:bold; font-size:16px;"></span>
+            </div>
+            <button onclick="closeStoryViewer()" style="background:none;border:none;color:white;font-size:30px;cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div style="flex:1; display:flex; justify-content:center; align-items:center; position:relative;" onclick="closeStoryViewer()">
+            <img id="storyImage" src="" style="max-width:100%; max-height:100%; object-fit:contain;">
+        </div>
+    </div>
+    
 </body>
 </html>
