@@ -516,19 +516,34 @@ def notifications():
     db.session.commit()
     return render_template('notifications.html', notifications=notifs, requests=FollowRequest.query.filter_by(receiver_id=current_user.id).all())
 
+
+@app.route('/clear_old_videos_secret')
+def clear_old_videos():
+    try:
+        # حذف كل الفيديوهات التي لا تنتمي للقائمة الجديدة
+        Video.query.filter(Video.filename.notin_(["https://www.w3schools.com/html/mov_bbb.mp4", "https://www.w3schools.com/html/movie.mp4", "https://test-videos.co.uk/vids/sintel/mp4/h264/720/Sintel_720_10s_1MB.mp4", "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_1MB.mp4", "https://test-videos.co.uk/vids/tearsofsteel/mp4/h264/720/TearsOfSteel_720_10s_1MB.mp4", "https://test-videos.co.uk/vids/sintel/mp4/h264/720/Sintel_720_10s_2MB.mp4", "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_2MB.mp4", "https://test-videos.co.uk/vids/tearsofsteel/mp4/h264/720/TearsOfSteel_720_10s_2MB.mp4", "https://test-videos.co.uk/vids/sintel/mp4/h264/720/Sintel_720_10s_5MB.mp4", "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_5MB.mp4"])).delete(synchronize_session=False)
+        db.session.commit()
+        return "✅ تم حذف كل الفيديوهات القديمة والثقيلة والتي ليس بها صوت! الآن افتح رابط التوليد لإضافة الفيديوهات الجديدة."
+    except Exception as e:
+        db.session.rollback()
+        return f"حدث خطأ: {str(e)}"
+
 @app.route('/generate_fake_data_secret')
+
 def generate_fake_data():
     try:
-        # الحد الأقصى (يمكنك زيادة الرقم إذا أردت المزيد)
-        if User.query.count() > 500: return "قاعدة البيانات ممتلئة جداً! (أكثر من 500 حساب)"
+        if User.query.count() > 500: return "قاعدة البيانات ممتلئة جداً!"
         
-        first_names = ["ahmed", "sara", "mohammed", "lina", "omar", "nour", "khaled", "yara", "tariq", "huda", "adam", "maya", "ali", "fatima", "hassan", "zainab", "yousef", "layla", "majed", "dina", "sami", "reem", "anas", "salma", "zaid", "rana", "faris", "noor", "kareem", "aya"]
-        suffixes = ["gamer", "art", "vlogs", "music", "funny", "cooking", "sports", "tech", "travel", "lifestyle", "fitness", "beauty", "food", "comedy", "news", "photo", "diy", "gaming", "movies", "books", "cars", "fashion", "dance", "sing", "code", "life", "world", "star", "king", "queen"]
-        captions = ["شوفوا هذا الفيديو الرهيب! 🔥", "أفضل لحظة في حياتي ❤️", "لا تفوتوا هذا المشهد 😂", "تجربة جديدة وممتعة ✨", "استمتعوا بالمشاهدة 🎬", "ما رأيكم بهذا؟ 👀", "محتوى حصري لكم 💎", "شاركوني رأيكم بالتعليقات 👇", "كل يوم فيديو جديد 🚀", "أتمنى يعجبكم ❤️", "لا تنسوا المتابعة ✨", "جودة عالية 4K 🎥", "من تصويري الخاص 📸", "تحياتي لكم من فلسطين 🇵🇸", "Happy Day ✌️", "تحدي جديد 🔥"]
-        comments_pool = ["فيديو رائع جداً! 🔥", "استمر يا بطل 👏", "أفضل محتوى شفته اليوم ❤️", "متابعك من فلسطين 🇵🇸", "ههههههه مضحك كثير 😂", "ما شاء الله، إبداع!", "كيف سويت هذا؟", "أول مرة أشوف زي هيك", "جودة عالية جداً", "أتمنى لك التوفيق", "أنت الأفضل!", "أضفتك للمفضلة ⭐", "منتظر جديدك", "شكراً على المحتوى", "الله يعطيك العافية"]
+        first_names = ["ahmed", "sara", "mohammed", "lina", "omar", "nour", "khaled", "yara", "tariq", "huda"]
+        suffixes = ["gamer", "art", "vlogs", "music", "funny", "cooking", "sports", "tech", "travel", "lifestyle"]
+        captions = ["شوفوا هذا الفيديو الرهيب! 🔥", "أفضل لحظة في حياتي ❤️", "لا تفوتوا هذا المشهد 😂", "تجربة جديدة وممتعة ✨", "استمتعوا بالمشاهدة 🎬", "ما رأيكم بهذا؟ 👀", "محتوى حصري لكم 💎", "شاركوني رأيكم بالتعليقات 👇", "كل يوم فيديو جديد 🚀", "أتمنى يعجبكم ❤️"]
+        comments_pool = ["فيديو رائع جداً! 🔥", "استمر يا بطل 👏", "أفضل محتوى شفته اليوم ❤️", "متابعك من فلسطين 🇵🇸", "ههههههه مضحك كثير 😂", "ما شاء الله، إبداع!", "كيف سويت هذا؟", "أول مرة أشوف زي هيك", "جودة عالية جداً", "أتمنى لك التوفيق"]
+        
+        # جلب الفيديوهات المتاحة من القائمة
+        available_videos = eval(re.search(r'sample_videos = (\[.*?\])', code, re.DOTALL).group(1))
         
         users_to_add = []
-        for i in range(10): # إضافة 10 حسابات في كل مرة
+        for i in range(10):
             name = f"{random.choice(first_names)}_{random.choice(suffixes)}{random.randint(1000, 99999)}"
             user = User(username=name, bio=f"مرحباً، أنا {name}! أشارككم محتواي هنا ✨", profile_pic=f"https://i.pravatar.cc/150?u={random.randint(1, 1000)}")
             user.set_password("123456")
@@ -537,13 +552,16 @@ def generate_fake_data():
         db.session.bulk_save_objects(users_to_add)
         db.session.commit()
 
-        # جلب الحسابات الجديدة فقط
         new_users = User.query.order_by(User.id.desc()).limit(10).all()
         
         videos_to_add = []
+        video_index = 0
         for user in new_users:
-            for _ in range(3): # 3 فيديوهات لكل حساب جديد
-                v = Video(filename=random.choice(eval(re.search(r'sample_videos = (\[.*?\])', code, re.DOTALL).group(1))), caption=random.choice(captions), user_id=user.id, views=random.randint(100, 50000), likes_count=random.randint(10, 5000))
+            for _ in range(3):
+                # توزيع الفيديوهات بالتسلسل لمنع التكرار
+                vid_url = available_videos[video_index % len(available_videos)]
+                video_index += 1
+                v = Video(filename=vid_url, caption=random.choice(captions), user_id=user.id, views=random.randint(100, 50000), likes_count=random.randint(10, 5000))
                 videos_to_add.append(v)
         db.session.bulk_save_objects(videos_to_add)
         db.session.commit()
@@ -559,7 +577,11 @@ def generate_fake_data():
         db.session.bulk_save_objects(comments_to_add)
         db.session.commit()
         
-        return f"🎉 تمت إضافة 10 حسابات و 30 فيديو بنجاح!<br><br>عدد الحسابات الآن: {User.query.count()}<br>عدد الفيديوهات الآن: {Video.query.count()}<br><br>كلمة المرور: 123456"
+        return f"🎉 تمت إضافة 10 حسابات و 30 فيديو جديد (بدون تكرار)!<br><br>عدد الحسابات الآن: {User.query.count()}<br>عدد الفيديوهات الآن: {Video.query.count()}"
+    except Exception as e:
+        db.session.rollback()
+        return f"حدث خطأ: {str(e)}"
+
     except Exception as e:
         db.session.rollback()
         return f"حدث خطأ: {str(e)}"
