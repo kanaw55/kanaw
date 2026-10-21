@@ -79,7 +79,7 @@
             <i class="fa-solid fa-users" style="font-size: 24px;"></i>
         </div>
         <div class="chat-info">
-            <div class="chat-name">{{ group.name }}</div>
+            <div class="chat-name">{{ group.name }} {% if unread_group.get(group.id|string) %}<span style="background:#fe2c55; color:white; border-radius:50%; padding:2px 6px; font-size:10px; margin-right:10px;">{{ unread_group[group.id|string] }}</span>{% endif %}</div>
             <div class="chat-msg">{{ group.members|length }} أعضاء</div>
         </div>
     </a>
@@ -95,7 +95,7 @@
                 {% if user.profile_pic %}<img src="{{ user.profile_pic }}">{% else %}👤{% endif %}
             </div>
             <div class="chat-info">
-                <div class="chat-name">@{{ user.username }}</div>
+                <div class="chat-name">@{{ user.username }} {% if unread_dm.get(user.id|string) %}<span style="background:#fe2c55; color:white; border-radius:50%; padding:2px 6px; font-size:10px; margin-right:10px;">{{ unread_dm[user.id|string] }}</span>{% endif %}</div>
                 <div class="chat-msg">اضغط لفتح المحادثة</div>
             </div>
         </a>

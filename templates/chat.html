@@ -37,21 +37,28 @@
     </div>
 
     <div class="chat-box" id="chatBox">
+
+    {% if pinned_message %}
+    <div style="background: #222; border-right: 4px solid #fe2c55; padding: 10px; margin: 10px; border-radius: 5px; font-size: 13px; text-align: right;">
+        <b>📌 رسالة مثبتة:</b> {{ pinned_message.content|format_text|safe }}
+    </div>
+    {% endif %}
+    
         {% for msg in messages %}
             {% if msg.sender_id == current_user.id %}
-                <div class="message sent">
+                <div class="message sent" style="display:flex; justify-content:space-between; align-items:center;"><span>
                     {% if msg.message_type == 'audio' %}
-                        <div class="audio-message"><i class="fa-solid fa-microphone"></i><audio src="{{ msg.content|linkify|safe }}" controls></audio></div>
+                        <div class="audio-message"><i class="fa-solid fa-microphone"></i><audio src="{{ msg.content|format_text|safe }}" controls></audio></span> <form method="POST" action="/group/{{ group.id }}/pin/{{ msg.id }}" style="display:inline; margin-right:10px;"><button type="submit" style="background:none; border:none; color:#aaa; cursor:pointer;"><i class="fa-solid fa-thumbtack"></i></button></form> </div>
                     {% else %}
-                        {{ msg.content|linkify|safe }}
+                        {{ msg.content|format_text|safe }}
                     {% endif %}
                 </div>
             {% else %}
-                <div class="message received">
+                <div class="message received" style="display:flex; justify-content:space-between; align-items:center;"><span>
                     {% if msg.message_type == 'audio' %}
-                        <div class="audio-message"><i class="fa-solid fa-microphone"></i><audio src="{{ msg.content|linkify|safe }}" controls></audio></div>
+                        <div class="audio-message"><i class="fa-solid fa-microphone"></i><audio src="{{ msg.content|format_text|safe }}" controls></audio></span> <form method="POST" action="/group/{{ group.id }}/pin/{{ msg.id }}" style="display:inline; margin-right:10px;"><button type="submit" style="background:none; border:none; color:#aaa; cursor:pointer;"><i class="fa-solid fa-thumbtack"></i></button></form> </div>
                     {% else %}
-                        {{ msg.content|linkify|safe }}
+                        {{ msg.content|format_text|safe }}
                     {% endif %}
                 </div>
             {% endif %}
