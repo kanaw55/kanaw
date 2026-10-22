@@ -642,6 +642,50 @@ def pin_message(group_id, msg_id):
 def chat_group(group_id):
     group = ChatGroup.query.get_or_404(group_id)
     if current_user not in group.members: return "غير مصرح", 403
+    is_admin = current_user in group.admins
+    
+    if request.method == 'POST':
+        if group.restrict_send_messages and not is_admin:
+            flash('المجموعة مغلقة، فقط المشرفون يمكنهم إرسال الرسائل.')
+            return redirect(url_for('chat_group', group_id=group.id))
+            
+        content = request.form.get('content')
+        if content:
+            reply_to_id = request.form.get('reply_to_id')
+            reply_to_id = int(reply_to_id) if reply_to_id else None
+            db.session.add(Message(sender_id=current_user.id, content=content, group_id=group.id, reply_to_id=reply_to_id))
+            db.session.commit()
+            return redirect(url_for('chat_group', group_id=group.id))
+
+    # فلترة ذكية: إذا كان عمود joined_at مفقوداً في قاعدة البيانات، لن ينهار الموقع
+    try:
+        joined_row = db.session.execute(
+            db.select(group_member.c.joined_at).where(
+                (group_member.c.group_id == group.id) & 
+                (group_member.c.user_id == current_user.id)
+            )
+        ).first()
+        joined_at = joined_row[0] if joined_row else None
+        
+        if joined_at and current_user.id != group.creator_id:
+            messages = Message.query.filter(
+                Message.group_id == group.id,
+                Message.timestamp >= joined_at
+            ).order_by(Message.timestamp.desc()).limit(50).all()
+        else:
+            messages = Message.query.filter_by(group_id=group.id).order_by(Message.timestamp.desc()).limit(50).all()
+        messages.reverse()
+    except Exception:
+        db.session.rollback()
+        # في حال حدوث خطأ (مثلاً العمود غير موجود)، نعرض الرسائل بشكل طبيعي
+        messages = Message.query.filter_by(group_id=group.id).order_by(Message.timestamp.desc()).limit(50).all()
+        messages.reverse()
+
+    return render_template('chat.html', other_user=None, group=group, messages=messages, is_admin=is_admin)
+
+def chat_group(group_id):
+    group = ChatGroup.query.get_or_404(group_id)
+    if current_user not in group.members: return "غير مصرح", 403
     
     is_admin = current_user in group.admins
     
