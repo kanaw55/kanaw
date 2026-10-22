@@ -1509,3 +1509,94 @@ def make_me_legendary():
     current_user.is_verified = False
     db.session.commit()
     return f"✅ مبروك يا {current_user.username}! الآن لديك 7 مليار متابع و 40 مليار لايك."
+
+# ============================================================
+# نظام رفع الفيديوهات إلى Cloudinary (نسخة آمنة بدون f-strings)
+# ============================================================
+
+@app.route('/admin/seed_upload')
+@login_required
+def seed_upload_page():
+    creators_list = list(_CREATORS.keys())
+    creator_ids = [u.id for u in User.query.filter(User.username.in_(creators_list)).all()]
+    old_count = Video.query.filter(Video.user_id.in_(creator_ids)).count() if creator_ids else 0
+    
+    css = 'body{font-family:sans-serif;background:#111;color:#fff;padding:20px;max-width:600px;margin:0 auto}a{color:#fe2c55;text-decoration:none}.btn{display:block;padding:15px 30px;background:#fe2c55;color:#fff;border:none;border-radius:8px;cursor:pointer;margin:10px 0;font-size:16px;width:100%;text-align:center;box-sizing:border-box}.btn:hover{background:#e02548}.warning{background:#3a2a1a;padding:15px;border-radius:8px;margin:15px 0;color:#ff9800}'
+    
+    html = '<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>Seed Upload</title><style>' + css + '</style></head><body>'
+    html += '<h1>📹 رفع فيديوهات جودة Cloudinary</h1>'
+    html += '<div class="warning"><strong>الحالة:</strong> لديك <strong>' + str(old_count) + '</strong> فيديو قديم.<br><br>'
+    html += '<strong>الخطوات:</strong><br>1. اضغط "حذف القديمة" أولاً<br>2. اضغط كل زر رفع واحداً تلو الآخر<br>3. انتظر 5-10 ثواني بين كل رفع</div>'
+    html += '<a href="/admin/seed_cleanup" class="btn" style="background:#dc3545;">🗑️ حذف الفيديوهات القديمة</a>'
+    html += '<h2>اضغط لرفع فيديو:</h2>'
+    for i in range(len(_SEED_URLS)):
+        html += '<a href="/admin/seed_upload/' + str(i) + '" class="btn">📹 رفع فيديو ' + str(i+1) + ' من ' + str(len(_SEED_URLS)) + '</a>'
+    html += '</body></html>'
+    return html
+
+
+@app.route('/admin/seed_cleanup')
+@login_required
+def seed_cleanup():
+    creator_ids = [u.id for u in User.query.filter(User.username.in_(list(_CREATORS.keys()))).all()]
+    deleted = 0
+    if creator_ids:
+        deleted = Video.query.filter(Video.user_id.in_(creator_ids)).delete(synchronize_session=False)
+        db.session.commit()
+    return '<html dir="rtl"><body style="font-family:sans-serif;background:#111;color:#fff;padding:20px;text-align:center;"><h1>✅ تم حذف ' + str(deleted) + ' فيديو قديم</h1><a href="/admin/seed_upload" style="color:#fe2c55;font-size:18px;">← رجوع</a></body></html>'
+
+
+@app.route('/admin/seed_upload/<int:idx>')
+@login_required
+def seed_upload_one(idx):
+    if idx >= len(_SEED_URLS):
+        return '<html dir="rtl"><body><h1>انتهت القائمة ✅</h1></body></html>'
+    
+    try:
+        creator_names = list(_CREATORS.keys())
+        creator_name = creator_names[idx % len(creator_names)]
+        bio, pic = _CREATORS[creator_name]
+        
+        creator = User.query.filter_by(username=creator_name).first()
+        if not creator:
+            creator = User(username=creator_name, bio=bio, profile_pic=pic, is_verified=False)
+            creator.set_password("curator123456")
+            db.session.add(creator)
+            db.session.commit()
+        
+        res = cloudinary.uploader.upload(_SEED_URLS[idx], resource_type="video", folder="seed")
+        cloud_url = res['secure_url']
+        if '/video/upload/' in cloud_url:
+            cloud_url = cloud_url.replace('/video/upload/', '/video/upload/q_auto,f_auto/')
+        
+        caption = "محتوى " + creator_name + " - فيديو " + str(idx+1)
+        v = Video(
+            filename=cloud_url,
+            caption=caption,
+            user_id=creator.id,
+            views=random.randint(1000, 100000),
+            likes_count=random.randint(100, 10000)
+        )
+        db.session.add(v)
+        db.session.commit()
+        
+        if idx+1 < len(_SEED_URLS):
+            next_btn = '<a href="/admin/seed_upload/' + str(idx+1) + '" class="btn" style="background:#28a745;">→ التالي (' + str(idx+2) + ' من ' + str(len(_SEED_URLS)) + ')</a>'
+        else:
+            next_btn = '<h2>🎉 اكتمل كل شيء!</h2>'
+        
+        css = 'body{font-family:sans-serif;background:#111;color:#fff;padding:20px;max-width:600px;margin:0 auto}a{color:#fe2c55;text-decoration:none}.btn{display:block;padding:15px 30px;background:#28a745;color:#fff;border-radius:8px;margin:10px 0;font-size:16px;width:100%;text-align:center;box-sizing:border-box}.success{background:#1a3a1a;padding:20px;border-radius:8px;margin:15px 0}'
+        
+        html = '<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><style>' + css + '</style></head><body>'
+        html += '<div class="success"><h1>✅ تم رفع الفيديو ' + str(idx+1) + '</h1>'
+        html += '<p>تم رفعه إلى Cloudinary — سيظهر في الرئيسية الآن!</p>'
+        html += '<p style="font-size:11px;word-break:break-all;color:#888;">' + cloud_url + '</p></div>'
+        html += next_btn
+        html += '<a href="/admin/seed_upload" class="btn" style="background:#333;">← رجوع للقائمة</a>'
+        html += '</body></html>'
+        return html
+    except Exception as e:
+        db.session.rollback()
+        css = 'body{font-family:sans-serif;background:#111;color:#fff;padding:20px}'
+        return '<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><style>' + css + '</style></head><body><h1>❌ خطأ في الفيديو ' + str(idx+1) + '</h1><p style="background:#3a1a1a;padding:15px;border-radius:8px;">' + str(e) + '</p><a href="/admin/seed_upload" style="color:#fe2c55;">← رجوع وحاول مرة أخرى</a></body></html>', 500
+
