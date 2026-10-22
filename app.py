@@ -2302,3 +2302,43 @@ def bulk_pexels():
     
     return '''<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>رفع Pexels</title><style>body{font-family:sans-serif;background:#111;color:#fff;padding:20px;max-width:600px;margin:0 auto;text-align:center;line-height:1.8}a{color:#fe2c55;font-size:18px;text-decoration:none}</style></head><body><h1>🎬 بدء رفع 50 فيديو تصميم</h1><p style="color:#28a745;background:#1a3a1a;padding:20px;border-radius:8px;">✅ بدأ الرفع في الخلفية! سيستغرق 3-5 دقائق.</p><p style="color:#888;">انتظر ثم افتح الرئيسية لمشاهدتها.</p><a href="/">← الرئيسية</a></body></html>'''
 
+
+@app.route('/admin/upload_pexels_live')
+@login_required
+def upload_pexels_live():
+    urls = [
+        "https://videos.pexels.com/video-files/3130284/3130284-uhd_1440_2560_30fps.mp4",
+        "https://videos.pexels.com/video-files/2099568/2099568-uhd_1440_2560_30fps.mp4",
+        "https://videos.pexels.com/video-files/3129671/3129671-uhd_1440_2560_30fps.mp4",
+        "https://videos.pexels.com/video-files/2795750/2795750-uhd_1440_2560_25fps.mp4",
+        "https://videos.pexels.com/video-files/3015510/3015510-uhd_1440_2560_24fps.mp4",
+    ]
+    
+    # تأكد أن المستخدم الحالي موجود في قاعدة البيانات
+    current_user_id = current_user.id
+    
+    html = '<html dir="rtl"><head><meta charset="UTF-8"><title>رفع مباشر</title><style>body{font-family:sans-serif;background:#111;color:#fff;padding:20px;line-height:1.6}.success{color:#28a745;background:#1a3a1a;padding:10px;border-radius:5px;margin:5px 0}.error{color:#ff6b6b;background:#3a1a1a;padding:10px;border-radius:5px;margin:5px 0}</style></head><body>'
+    html += '<h1>⬆️ الرفع المباشر (5 فيديوهات)</h1>'
+    html += f'<p>المستخدم الحالي ID: {current_user_id}</p>'
+    
+    for i, url in enumerate(urls):
+        try:
+            res = cloudinary.uploader.upload(url, resource_type="video", folder="pexels")
+            cloud_url = res['secure_url']
+            if '/video/upload/' in cloud_url:
+                cloud_url = cloud_url.replace('/video/upload/', '/video/upload/q_auto,f_auto/')
+            
+            v = Video(filename=cloud_url, caption=f"تصميم سينمائي {i+1} 🎬", user_id=current_user_id, views=1000, likes_count=100)
+            db.session.add(v)
+            db.session.commit()
+            html += f'<div class="success">✅ فيديو {i+1} نجح: {cloud_url[:60]}...</div>'
+        except Exception as e:
+            db.session.rollback()
+            html += f'<div class="error">❌ فيديو {i+1} فشل: {str(e)[:200]}</div>'
+    
+    html += '<h2>النتيجة النهائية:</h2>'
+    total = Video.query.count()
+    html += f'<p>عدد الفيديوهات في قاعدة البيانات الآن: <strong>{total}</strong></p>'
+    html += '<a href="/" style="color:#fe2c55;">← الرئيسية</a>'
+    html += '</body></html>'
+    return html
