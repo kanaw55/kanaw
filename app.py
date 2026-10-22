@@ -1431,3 +1431,71 @@ def api_join_group(code):
 
 
 # ============================================================
+
+
+# ============================================================
+# إضافات جديدة (سيدينج + أرقام خيالية)
+# ============================================================
+_SEED_URLS = [
+    "https://www.w3schools.com/html/mov_bbb.mp4", "https://www.w3schools.com/html/movie.mp4",
+    "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4", "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/friday.mp4",
+    "https://assets.mixkit.co/videos/preview/mixkit-tree-with-yellow-leaves-2763-large.mp4", "https://assets.mixkit.co/videos/preview/mixkit-stars-in-space-1610-large.mp4",
+    "https://assets.mixkit.co/videos/preview/mixkit-forest-stream-in-the-sunlight-529-large.mp4", "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4",
+    "https://test-videos.co.uk/vids/sintel/mp4/h264/360/Sintel_360_10s_1MB.mp4", "https://test-videos.co.uk/vids/jellyfish/mp4/h264/360/Jellyfish_360_10s_1MB.mp4",
+]
+for _u in _SEED_URLS:
+    if _u not in VALID_VIDEOS: VALID_VIDEOS.append(_u)
+
+_CREATORS = {
+    "design_daily": "🎨 تصميمات احترافية", "motivation_hub": "💪 جرعة تحفيز",
+    "anime_lover": "🌸 عاشق الأنمي", "tech_news": "📱 أخبار التقنية",
+    "aesthetic_daily": "🍃 جماليات", "chef_daily": "🍳 وصفات سريعة",
+    "travel_world": "✈️ حول العالم", "gamer_zone": "🎮 عالم الألعاب",
+    "music_vibes": "🎵 موسيقى", "fitness_pro": "🏋️ رياضة"
+}
+
+_CAPTIONS = []
+for i in range(1, 11):
+    _CAPTIONS.extend([
+        ("design_daily", f"تصميم رقم {i} - أفكار إبداعية 🎨 #تصميم"),
+        ("motivation_hub", f"جرعة تحفيز رقم {i} - استمر 🔥 #تحفيز"),
+        ("anime_lover", f"أنمي رقم {i} - مشاهد أسطورية 🌸 #أنمي"),
+        ("tech_news", f"تقنية رقم {i} - ما الجديد؟ 📱 #تقنية"),
+        ("aesthetic_daily", f"جماليات رقم {i} - هدوء 🍃 #جماليات"),
+        ("chef_daily", f"وصفة رقم {i} - سريعة ولذيذة 🍳 #طبخ"),
+        ("travel_world", f"مكان رقم {i} - سفر ✈️ #سفر"),
+        ("gamer_zone", f"لعبة رقم {i} - مراجعة 🎮 #ألعاب"),
+        ("music_vibes", f"مقطوعة رقم {i} - استرخاء 🎵 #موسيقى"),
+        ("fitness_pro", f"تمرين رقم {i} - لياقة 🏋️ #رياضة"),
+    ])
+
+@app.route('/admin/seed_curated_videos')
+@login_required
+def seed_curated_videos():
+    created = 0
+    for username, bio in _CREATORS.items():
+        if not User.query.filter_by(username=username).first():
+            u = User(username=username, bio=bio, profile_pic=f"https://i.pravatar.cc/150?u={username}", is_verified=False)
+            u.set_password("curator123456")
+            db.session.add(u)
+            created += 1
+    db.session.commit()
+
+    added = 0
+    for i, (creator_name, caption) in enumerate(_CAPTIONS):
+        if Video.query.filter_by(caption=caption).first(): continue
+        creator = User.query.filter_by(username=creator_name).first()
+        if not creator: continue
+        db.session.add(Video(filename=_SEED_URLS[i % len(_SEED_URLS)], caption=caption, user_id=creator.id, views=random.randint(1000, 100000), likes_count=random.randint(100, 10000)))
+        added += 1
+    db.session.commit()
+    return f"✅ أُضيف {added} فيديو جديد، {created} صانع محتوى. المجموع: {Video.query.count()} فيديو."
+
+@app.route('/admin/make_me_legendary')
+@login_required
+def make_me_legendary():
+    current_user.fake_followers = 7000000000
+    current_user.fake_likes = 40000000000
+    current_user.is_verified = False
+    db.session.commit()
+    return f"✅ مبروك يا {current_user.username}! الآن لديك 7 مليار متابع و 40 مليار لايك."
