@@ -201,21 +201,7 @@ def inject_notifications():
     return dict(unread_notifications=0)
 
 
-@app.template_filter('linkify')
-def linkify(text):
-    if not text: return text
-    # تحويل الروابط إلى a tags
-    return re.sub(r'(https?://[^\s]+|www\.[^\s]+)', r'<a href="\1" target="_blank" style="color:#00f2fe; text-decoration:underline;">\1</a>', text)
 
-@app.template_filter('format_text')
-def format_text(text):
-    if not text:
-        return text
-    from markupsafe import Markup, escape
-    s = str(escape(text))
-    s = re.sub(r'(https?://[^\s]+|www\.[^\s]+)', r'<a href="\1" target="_blank" style="color:#00f2fe;text-decoration:underline;">\1</a>', s)
-    s = re.sub(r'#(\w+)', r'<a href="/hashtag/\1" style="color:#00f2ea;text-decoration:none;">#\1</a>', s)
-    return Markup(s)
 
 @app.template_filter('hashtag')
 
@@ -1162,6 +1148,32 @@ def api_typing_status():
     if names:
         return jsonify({'typing': True, 'text': ', '.join('@'+n for n in names) + (' يكتب...' if len(names)==1 else ' يكتبون...')})
     return jsonify({'typing': False})
+
+
+
+from markupsafe import Markup, escape
+
+@app.template_filter('format_text')
+def format_text(text):
+    if not text:
+        return text
+    # 1. تحويل النص إلى آمن (منع XSS)
+    s = str(escape(str(text)))
+    # 2. تحويل الروابط
+    def _url(m):
+        u = m.group(0)
+        return '<a href="' + u + '" target="_blank" rel="noopener" style="color:#00f2fe;text-decoration:underline;">' + u + '</a>'
+    s = re.sub(r'(https?://[^\s]+|www\.[^\s]+)', _url, s)
+    # 3. تحويل الهاشتاجات
+    def _tag(m):
+        t = m.group(1)
+        return '<a href="/hashtag/' + t + '" style="color:#00f2ea;text-decoration:none;">#' + t + '</a>'
+    s = re.sub(r'#(\w+)', _tag, s)
+    return Markup(s)
+
+@app.template_filter('linkify')
+def linkify(text):
+    return format_text(text)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
