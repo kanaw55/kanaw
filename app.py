@@ -1897,7 +1897,8 @@ def fetch_media():
                     'quiet': True,
                     'no_warnings': True,
                     'nocheckcertificate': True,
-                    'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'impersonate': 'chrome',  # استخدام انتحال شخصية المتصفح
+                    # 'proxy': 'http://your-proxy:port',  # اختياري: إذا أردت استخدام بروكسي
                 }
                 
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
