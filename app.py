@@ -2063,3 +2063,93 @@ def fetch_media_advanced():
         <button type="submit">⬇️ محاولة السحب</button>
     </form>
     </body></html>'''
+
+# ============================================================
+# حذف الفيديوهات المكررة (نفس الرابط filename)
+# ============================================================
+@app.route('/admin/clean_duplicates')
+@login_required
+def clean_duplicates():
+    from sqlalchemy import func
+    
+    # البحث عن الفيديوهات المكررة
+    duplicates = db.session.query(
+        Video.filename,
+        func.count(Video.id).label('count'),
+        func.min(Video.id).label('keep_id')
+    ).group_by(Video.filename).having(func.count(Video.id) > 1).all()
+    
+    deleted = 0
+    details = []
+    
+    for filename, count, keep_id in duplicates:
+        # احذف كل النسخ ما عدا keep_id
+        to_delete = Video.query.filter(
+            Video.filename == filename,
+            Video.id != keep_id
+        ).all()
+        for v in to_delete:
+            # احذف التعليقات المرتبطة أولاً
+            Comment.query.filter_by(video_id=v.id).delete()
+            db.session.delete(v)
+            deleted += 1
+        details.append(f"'{filename[-40:]}' — {count} نسخة (احتفظنا بـ 1، حذفنا {count-1})")
+    
+    db.session.commit()
+    
+    remaining = Video.query.count()
+    
+    # عرض النتائج
+    css = 'body{font-family:sans-serif;background:#111;color:#fff;padding:20px;max-width:700px;margin:0 auto}.success{background:#1a3a1a;padding:15px;border-radius:8px;margin:20px 0}.list{background:#222;padding:15px;border-radius:8px;font-size:13px;direction:ltr;text-align:left}.btn{display:inline-block;padding:12px 20px;background:#fe2c55;color:#fff;text-decoration:none;border-radius:8px;margin:10px 5px 10px 0}'
+    
+    html = '<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>تنظيف المكرر</title><style>' + css + '</style></head><body>'
+    html += '<h1>🧹 تنظيف الفيديوهات المكررة</h1>'
+    
+    if deleted == 0:
+        html += '<div class="success"><strong>✅ لا توجد فيديوهات مكررة.</strong><br>جميع الفيديوهات فريدة.</div>'
+    else:
+        html += '<div class="success"><strong>✅ تم حذف ' + str(deleted) + ' فيديو مكرر.</strong><br>'
+        html += 'المتبقي: ' + str(remaining) + ' فيديو فريد.</div>'
+        html += '<div class="list"><strong>التفاصيل:</strong><br>' + '<br>'.join(details[:20])
+        if len(details) > 20:
+            html += '<br>... و ' + str(len(details) - 20) + ' مجموعة أخرى'
+        html += '</div>'
+    
+    html += '<a href="/" class="btn">← الرئيسية</a>'
+    html += '<a href="/admin/clean_duplicates" class="btn" style="background:#333;">🔄 إعادة الفحص</a>'
+    html += '</body></html>'
+    return html
+
+@app.route('/admin/clean_duplicates_preview')
+@login_required
+def clean_duplicates_preview():
+    from sqlalchemy import func
+    
+    duplicates = db.session.query(
+        Video.filename,
+        func.count(Video.id).label('count'),
+        func.min(Video.id).label('keep_id')
+    ).group_by(Video.filename).having(func.count(Video.id) > 1).all()
+    
+    total_to_delete = sum(count - 1 for _, count, _ in duplicates)
+    total_videos = Video.query.count()
+    
+    css = 'body{font-family:sans-serif;background:#111;color:#fff;padding:20px;max-width:700px;margin:0 auto}.stats{background:#222;padding:20px;border-radius:8px;margin:20px 0;text-align:center;font-size:18px}.stats strong{color:#fe2c55;font-size:24px}.btn{display:block;padding:15px;background:#dc3545;color:#fff;text-decoration:none;border-radius:8px;margin:20px 0;text-align:center;font-weight:bold;font-size:16px}.back{background:#333}'
+    
+    html = '<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>فحص المكرر</title><style>' + css + '</style></head><body>'
+    html += '<h1>🔍 فحص الفيديوهات المكررة</h1>'
+    html += '<div class="stats">'
+    html += '<p>إجمالي الفيديوهات: <strong>' + str(total_videos) + '</strong></p>'
+    html += '<p>فيديوهات مكررة (ستُحذف): <strong>' + str(total_to_delete) + '</strong></p>'
+    html += '<p>ستبقى: <strong>' + str(total_videos - total_to_delete) + '</strong></p>'
+    html += '</div>'
+    
+    if total_to_delete > 0:
+        html += '<a href="/admin/clean_duplicates" class="btn">🗑️ حذف الفيديوهات المكررة الآن</a>'
+    else:
+        html += '<p style="text-align:center;color:#28a745;font-size:18px;">✅ لا توجد فيديوهات مكررة</p>'
+    
+    html += '<a href="/" class="btn back">← الرئيسية</a>'
+    html += '</body></html>'
+    return html
+
