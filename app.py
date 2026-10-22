@@ -1772,3 +1772,30 @@ def batch_upload(start):
     html += '</body></html>'
     return html
 
+
+@app.route('/admin/test_upload')
+@login_required
+def test_upload():
+    result = []
+    test_urls = [
+        ("W3Schools", "https://www.w3schools.com/html/mov_bbb.mp4"),
+        ("MDN", "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"),
+        ("Google", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"),
+        ("Mixkit", "https://assets.mixkit.co/videos/preview/mixkit-stars-in-space-1610-large.mp4"),
+    ]
+    
+    for name, url in test_urls:
+        try:
+            res = cloudinary.uploader.upload(url, resource_type="video", folder="test")
+            result.append(f"✅ {name}: نجح — {res.get('secure_url', '')[:80]}")
+        except Exception as e:
+            result.append(f"❌ {name}: فشل — {str(e)[:300]}")
+    
+    # اختبار رفع ملف صغير محلي
+    try:
+        test_cloudinary = cloudinary.api.usage()
+        result.append(f"\n📊 استخدام Cloudinary: {test_cloudinary}")
+    except Exception as e:
+        result.append(f"\n⚠️ لا يمكن قراءة الاستخدام: {str(e)[:200]}")
+    
+    return '<html dir="rtl"><body style="font-family:sans-serif;background:#111;color:#fff;padding:20px;"><h1>🔍 نتائج التشخيص</h1><pre style="background:#222;padding:20px;border-radius:8px;direction:ltr;text-align:left;white-space:pre-wrap;word-break:break-all;">' + '\n\n'.join(result) + '</pre><a href="/admin/batch_seed" style="color:#fe2c55;">← رجوع</a></body></html>'
