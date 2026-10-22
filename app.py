@@ -217,6 +217,44 @@ def hashtag_page(tag):
     videos = Video.query.filter(Video.caption.ilike(f'%#{tag}%')).order_by(Video.id.desc()).all()
     return render_template('hashtag.html', tag=tag, videos=videos)
 
+
+from markupsafe import Markup, escape
+
+@app.template_filter('format_text')
+def format_text(text):
+    if not text:
+        return text
+    s = str(escape(str(text)))
+
+    urls = []
+    def _url(m):
+        urls.append(m.group(0))
+        return f"__URL_{len(urls)-1}__"
+    s = re.sub(r'(https?://[^\s]+|www\.[^\s]+)', _url, s)
+
+    tags = []
+    def _tag(m):
+        tags.append(m.group(1))
+        return f"__TAG_{len(tags)-1}__"
+    s = re.sub(r'#(\w+)', _tag, s)
+
+    for i, u in enumerate(urls):
+        is_internal = ('kanaw-1.onrender.com' in u) or u.startswith('/')
+        target_attr = '' if is_internal else ' target="_blank" rel="noopener"'
+        s = s.replace(f"__URL_{i}__",
+            f'<a href="{u}"{target_attr} style="color:#00f2fe;text-decoration:underline;">{u}</a>')
+
+    for i, t in enumerate(tags):
+        s = s.replace(f"__TAG_{i}__",
+            f'<a href="/hashtag/{t}" style="color:#00f2ea;text-decoration:none;">#{t}</a>')
+
+    return Markup(s)
+
+
+@app.template_filter('linkify')
+def linkify(text):
+    return format_text(text)
+
 @app.route('/')
 def index():
     feed_type = request.args.get('feed', 'foryou')
@@ -1153,28 +1191,6 @@ def api_typing_status():
 
 from markupsafe import Markup, escape
 
-@app.template_filter('format_text')
-def format_text(text):
-    if not text:
-        return text
-    # 1. تحويل النص إلى آمن (منع XSS)
-    s = str(escape(str(text)))
-    # 2. تحويل الروابط
-    def _url(m):
-        u = m.group(0)
-        return '<a href="' + u + '" target="_blank" rel="noopener" style="color:#00f2fe;text-decoration:underline;">' + u + '</a>'
-    s = re.sub(r'(https?://[^\s]+|www\.[^\s]+)', _url, s)
-    # 3. تحويل الهاشتاجات
-    def _tag(m):
-        t = m.group(1)
-        return '<a href="/hashtag/' + t + '" style="color:#00f2ea;text-decoration:none;">#' + t + '</a>'
-    s = re.sub(r'#(\w+)', _tag, s)
-    return Markup(s)
 
-@app.template_filter('linkify')
-def linkify(text):
-    return format_text(text)
 
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+
