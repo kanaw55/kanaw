@@ -119,12 +119,8 @@
             {% endif %}
 
             <div class="video-info" style="position: absolute; bottom: 20px; right: 15px; width: 70%; text-align: right; z-index: 5; text-shadow: 1px 1px 3px rgba(0,0,0,0.8);">
-                <div style="display:flex; align-items:center; gap:10px; flex-direction:row-reverse; justify-content:flex-end;">
-                    <a href="/profile/{{ video.user.username }}" style="color:white; text-decoration:none; font-weight:bold; font-size: 16px;">@{{ video.user.username }}</a>
-                    {% if current_user.is_authenticated and current_user.id != video.user.id and video.user not in current_user.followed %}
-                        <button onclick="followUser({{ video.user.id }}, this)" style="background:#fe2c55; color:white; border:none; padding:4px 10px; border-radius:5px; font-size:12px; cursor:pointer;">متابعة</button>
-                    {% endif %}
-                </div>
+                <a href="/profile/{{ video.user.username }}" style="color:white; text-decoration:none; font-weight:bold; font-size: 16px;">@{{ video.user.username }}</a>
+                {% if current_user.is_authenticated and current_user.id != video.user.id and video.user not in current_user.followed %}<button onclick="followUser({{ video.user.id }}, this)" style="background:#fe2c55;color:white;border:none;padding:4px 10px;border-radius:5px;font-size:12px;cursor:pointer;margin-right:8px;">متابعة</button>{% endif %}
                 <p style="color:white; margin: 5px 0;">{{ video.caption|hashtag }}</p>
             </div>
             
@@ -301,9 +297,9 @@
                 });
         }
     
-        function shareVideo(username, videoId, btn) {
+        function shareVideo(username) {
             if (!navigator.onLine) return alert('أنت غير متصل بالإنترنت');
-            shareVideoId = videoId;
+            shareVideoId = event.currentTarget.getAttribute('data-vid');
             document.getElementById('shareBackdrop').classList.add('active');
             document.getElementById('shareModal').classList.add('active');
             const list = document.getElementById('shareUserList');
@@ -324,25 +320,14 @@
         
     
         async function followUser(userId, btn) {
-            if (!confirm('هل تريد متابعة هذا المستخدم؟')) return;
-            btn.disabled = true;
-            btn.innerText = '...';
+            btn.disabled = true; btn.innerText = '...';
             try {
-                const res = await fetch('/toggle_follow/' + userId, { method: 'GET' });
-                if (res.ok) {
-                    btn.innerText = 'تمت المتابعة ✓';
-                    btn.style.background = '#28a745';
-                    setTimeout(() => { btn.style.display = 'none'; }, 1500);
-                } else {
-                    btn.innerText = 'خطأ';
-                    btn.disabled = false;
-                }
-            } catch (e) {
-                btn.innerText = 'خطأ';
-                btn.disabled = false;
-            }
+                const res = await fetch('/toggle_follow/' + userId);
+                if (res.ok) { btn.innerText = 'تمت ✓'; btn.style.background = '#28a745'; setTimeout(() => { btn.style.display = 'none'; }, 1500); }
+                else { btn.innerText = 'خطأ'; btn.disabled = false; }
+            } catch (e) { btn.innerText = 'خطأ'; btn.disabled = false; }
         }
-    
+        
     </script>
 </body>
 </html>

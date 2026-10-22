@@ -133,7 +133,6 @@ class Notification(db.Model):
     sender_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     type = db.Column(db.String(20))
     is_read = db.Column(db.Boolean, default=False)
-    is_pinned = db.Column(db.Boolean, default=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     sender = db.relationship('User', foreign_keys=[sender_id])
 
@@ -229,48 +228,42 @@ def trending():
 @app.route('/inbox')
 @login_required
 def inbox():
-    sent = db.session.query(Message.receiver_id).filter(Message.sender_id == current_user.id, Message.group_id == None)
-    received = db.session.query(Message.sender_id).filter(Message.receiver_id == current_user.id, Message.group_id == None)
-    user_ids = set([id[0] for id in sent.all()] + [id[0] for id in received.all()])
-    users = User.query.filter(User.id.in_(user_ids)).all()
-    groups = current_user.chat_groups
-    stories = Story.query.filter(Story.created_at >= datetime.utcnow() - timedelta(days=1)).order_by(Story.created_at.desc()).all()
-    return render_template('inbox.html', users=users, groups=groups, stories=stories)
-def inbox():
-    sent = db.session.query(Message.receiver_id).filter(Message.sender_id == current_user.id, Message.group_id == None)
-    received = db.session.query(Message.sender_id).filter(Message.receiver_id == current_user.id, Message.group_id == None)
-    user_ids = set([id[0] for id in sent.all()] + [id[0] for id in received.all()])
-    users = User.query.filter(User.id.in_(user_ids)).all()
-    groups = current_user.chat_groups
-    
-    # إحصائيات الرسائل غير المقروءة للشخصي
-    unread_dms = db.session.query(Message.sender_id, db.func.count(Message.id)).filter(
-        Message.receiver_id == current_user.id, Message.is_read == False, Message.group_id == None
-    ).group_by(Message.sender_id).all()
-    unread_dm_dict = {str(sender_id): count for sender_id, count in unread_dms}
+    try:
+        sent = db.session.query(Message.receiver_id).filter(Message.sender_id == current_user.id, Message.group_id == None)
+        received = db.session.query(Message.sender_id).filter(Message.receiver_id == current_user.id, Message.group_id == None)
+        user_ids = set([id[0] for id in sent.all()] + [id[0] for id in received.all()])
+        users = User.query.filter(User.id.in_(user_ids)).all()
+        groups = current_user.chat_groups
+        
+        # جلب الأصدقاء المتبادلين (أتابعهم وهم يتابعونني) + نفسي
+        following_ids = [u.id for u in current_user.followed]
+        followers_ids = [u.id for u in current_user.followers]
+        mutual_ids = list(set(following_ids) & set(followers_ids))
+        mutual_ids.append(current_user.id)
+        
+        # جلب الحالات التي مر عليها أقل من 24 ساعة
+        raw_stories = Story.query.filter(Story.created_at >= datetime.utcnow() - timedelta(days=1), Story.user_id.in_(mutual_ids)).order_by(Story.created_at.desc()).all()
+        
+        # تجميع الحالات (نأخذ أحدث حالة لكل صديق لكي نعرضها في الدائرة)
+        stories = []
+        seen_users = set()
+        for s in raw_stories:
+            if s.user_id not in seen_users:
+                seen_users.add(s.user_id)
+                stories.append(s)
 
-    # إحصائيات الرسائل غير المقروءة للمجموعات
-    group_ids = [g.id for g in groups]
-    unread_groups = db.session.query(Message.group_id, db.func.count(Message.id)).filter(
-        Message.group_id.in_(group_ids), Message.sender_id != current_user.id, Message.is_read == False
-    ).group_by(Message.group_id).all()
-    unread_group_dict = {str(group_id): count for group_id, count in unread_groups}
-
-    # جلب الحالات للأصدقاء المتبادلين فقط
-    following_ids = [u.id for u in current_user.followed]
-    followers_ids = [u.id for u in current_user.followers]
-    mutual_ids = list(set(following_ids) & set(followers_ids))
-    mutual_ids.append(current_user.id)
-    
-    raw_stories = Story.query.filter(Story.created_at >= datetime.utcnow() - timedelta(days=1), Story.user_id.in_(mutual_ids)).order_by(Story.created_at.desc()).all()
-    stories = []
-    seen_users = set()
-    for s in raw_stories:
-        if s.user_id not in seen_users:
-            seen_users.add(s.user_id)
-            stories.append(s)
-            
-    return render_template('inbox.html', users=users, groups=groups, stories=stories, unread_dm=unread_dm_dict, unread_group=unread_group_dict)
+        # حساب الرسائل غير المقروءة
+        unread_dm_dict = {}
+        unread_group_dict = {}
+        try:
+            unread_dms = db.session.query(Message.sender_id, db.func.count(Message.id)).filter(Message.receiver_id == current_user.id, Message.is_read == False, Message.group_id == None).group_by(Message.sender_id).all()
+            unread_dm_dict = {str(s): c for s, c in unread_dms}
+            group_ids = [g.id for g in groups]
+            if group_ids:
+                unread_groups = db.session.query(Message.group_id, db.func.count(Message.id)).filter(Message.group_id.in_(group_ids), Message.sender_id != current_user.id, Message.is_read == False).group_by(Message.group_id).all()
+                unread_group_dict = {str(g): c for g, c in unread_groups}
+        except: pass
+        return render_template('inbox.html', users=users, groups=groups, stories=stories, unread_dm=unread_dm_dict, unread_group=unread_group_dict)
     except:
         return render_template('inbox.html', users=[], groups=[], stories=[])
 
@@ -298,6 +291,20 @@ def update_group_info(group_id):
     group.join_approval = True if request.form.get('join_approval') == 'on' else False
     db.session.commit()
     return redirect(url_for('group_info', group_id=group_id))
+
+@app.route('/group/<int:group_id>/pin/<int:msg_id>', methods=['POST'])
+@login_required
+def pin_message(group_id, msg_id):
+    group = ChatGroup.query.get_or_404(group_id)
+    if current_user not in group.admins: return "غير مصرح", 403
+    msg = Message.query.get_or_404(msg_id)
+    if msg.group_id == group.id:
+        if msg.is_pinned: msg.is_pinned = False
+        else:
+            Message.query.filter_by(group_id=group.id).update({"is_pinned": False})
+            msg.is_pinned = True
+        db.session.commit()
+    return redirect(url_for('chat_group', group_id=group_id))
 
 @app.route('/group_info/<int:group_id>')
 
@@ -346,6 +353,20 @@ def clear_chat(group_id):
     if current_user not in group.admins: return "غير مصرح", 403
     Message.query.filter_by(group_id=group.id).delete()
     db.session.commit()
+    return redirect(url_for('chat_group', group_id=group_id))
+
+@app.route('/group/<int:group_id>/pin/<int:msg_id>', methods=['POST'])
+@login_required
+def pin_message(group_id, msg_id):
+    group = ChatGroup.query.get_or_404(group_id)
+    if current_user not in group.admins: return "غير مصرح", 403
+    msg = Message.query.get_or_404(msg_id)
+    if msg.group_id == group.id:
+        if msg.is_pinned: msg.is_pinned = False
+        else:
+            Message.query.filter_by(group_id=group.id).update({"is_pinned": False})
+            msg.is_pinned = True
+        db.session.commit()
     return redirect(url_for('chat_group', group_id=group_id))
 
 @app.route('/group_info/<int:group_id>')
@@ -457,44 +478,25 @@ def kick_member(group_id, user_id):
 def chat_group(group_id):
     group = ChatGroup.query.get_or_404(group_id)
     if current_user not in group.members: return "غير مصرح", 403
+    
     is_admin = current_user in group.admins
     
     if request.method == 'POST':
         if group.restrict_send_messages and not is_admin:
             flash('المجموعة مغلقة، فقط المشرفون يمكنهم إرسال الرسائل.')
             return redirect(url_for('chat_group', group_id=group.id))
+            
         content = request.form.get('content')
         if content:
             db.session.add(Message(sender_id=current_user.id, content=content, group_id=group.id))
-            if '@all' in content and is_admin:
-                for member in group.members:
-                    if member != current_user:
-                        db.session.add(Notification(user_id=member.id, sender_id=current_user.id, type='mention'))
             db.session.commit()
             return redirect(url_for('chat_group', group_id=group.id))
             
-    # تحديد الرسائل كمقروءة
     Message.query.filter_by(group_id=group.id, is_read=False).filter(Message.sender_id != current_user.id).update({"is_read": True})
     db.session.commit()
-    
     pinned_msg = Message.query.filter_by(group_id=group.id, is_pinned=True).order_by(Message.timestamp.desc()).first()
     messages = Message.query.filter_by(group_id=group.id).order_by(Message.timestamp.asc()).all()
     return render_template('chat.html', other_user=None, group=group, messages=messages, is_admin=is_admin, pinned_message=pinned_msg)
-
-@app.route('/group/<int:group_id>/pin/<int:msg_id>', methods=['POST'])
-@login_required
-def pin_message(group_id, msg_id):
-    group = ChatGroup.query.get_or_404(group_id)
-    if current_user not in group.admins: return "غير مصرح", 403
-    msg = Message.query.get_or_404(msg_id)
-    if msg.group_id == group.id:
-        if msg.is_pinned:
-            msg.is_pinned = False
-        else:
-            Message.query.filter_by(group_id=group.id).update({"is_pinned": False})
-            msg.is_pinned = True
-        db.session.commit()
-    return redirect(url_for('chat_group', group_id=group_id))
 
 @app.route('/api/add_story', methods=['POST'])
 @login_required
@@ -804,9 +806,6 @@ def chat(username):
             db.session.add(Message(sender_id=current_user.id, receiver_id=other_user.id, content=content))
             db.session.add(Notification(user_id=other_user.id, sender_id=current_user.id, type='message'))
             db.session.commit(); return redirect(url_for('chat', username=username))
-    # تحديد كمقروءة
-    Message.query.filter_by(sender_id=other_user.id, receiver_id=current_user.id, is_read=False).update({"is_read": True})
-    db.session.commit()
     Message.query.filter_by(sender_id=other_user.id, receiver_id=current_user.id, is_read=False).update({"is_read": True})
     db.session.commit()
     messages = Message.query.filter(((Message.sender_id == current_user.id) & (Message.receiver_id == other_user.id)) | ((Message.sender_id == other_user.id) & (Message.receiver_id == current_user.id))).order_by(Message.timestamp.asc()).all()
