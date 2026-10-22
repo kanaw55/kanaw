@@ -102,6 +102,15 @@ window.addEventListener('error', function(e) {
 });
 </script>
 <body>
+
+    <script>
+    window.CHAT_CONFIG = {
+        groupId: {{ group.id|tojson if group else 'null' }},
+        otherUserId: {{ other_user.id|tojson if other_user else 'null' }}
+    };
+    console.log("🟢 CHAT_CONFIG loaded:", window.CHAT_CONFIG);
+    </script>
+    
     <div class="header">
         <a href="/inbox"><i class="fa-solid fa-arrow-right"></i></a>
         <div style="flex:1; text-align:center;">
@@ -314,7 +323,7 @@ async function toggleRecord() {
                 const blob = new Blob(audioChunks, { type: "audio/webm" });
                 const fd = new FormData();
                 fd.append("audio", blob, "voice.webm");
-                {% if group %}fd.append("group_id", "{{ group.id }}");{% else %}fd.append("receiver_id", "{{ other_user.id if other_user else '' }}");{% endif %}
+                fd.append(window.CHAT_CONFIG.groupId ? "group_id" : "receiver_id", window.CHAT_CONFIG.groupId || window.CHAT_CONFIG.otherUserId || "");
                 micBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
                 try {
                     const res = await fetch("/api/chat/audio", { method: "POST", body: fd });
@@ -448,10 +457,10 @@ async function msgAction(action) {
     } else if (action === "forward") {
         openForward();
     } else if (action === "pin") {
-        {% if group %}
-        fetch("/group/{{ group.id }}/pin/" + currentMsgData.id, { method: "POST" })
-            .then(() => location.reload());
-        {% endif %}
+        if (window.CHAT_CONFIG.groupId) {
+            fetch("/group/" + window.CHAT_CONFIG.groupId + "/pin/" + currentMsgData.id, { method: "POST" })
+                .then(() => location.reload());
+        }
     }
 }
 
@@ -542,7 +551,7 @@ function sendImage(input) {
     if (!input.files || !input.files[0]) return;
     const fd = new FormData();
     fd.append("image", input.files[0]);
-    {% if group %}fd.append("group_id", "{{ group.id }}");{% else %}fd.append("receiver_id", "{{ other_user.id if other_user else '' }}");{% endif %}
+    fd.append(window.CHAT_CONFIG.groupId ? "group_id" : "receiver_id", window.CHAT_CONFIG.groupId || window.CHAT_CONFIG.otherUserId || "");
     toast("📤 جاري الرفع...");
     fetch("/api/chat/image", { method: "POST", body: fd })
         .then(r => r.json()).then(d => {
@@ -556,7 +565,7 @@ function sendVideo(input) {
     if (!input.files || !input.files[0]) return;
     const fd = new FormData();
     fd.append("video", input.files[0]);
-    {% if group %}fd.append("group_id", "{{ group.id }}");{% else %}fd.append("receiver_id", "{{ other_user.id if other_user else '' }}");{% endif %}
+    fd.append(window.CHAT_CONFIG.groupId ? "group_id" : "receiver_id", window.CHAT_CONFIG.groupId || window.CHAT_CONFIG.otherUserId || "");
     toast("📤 جاري رفع الفيديو...");
     fetch("/api/chat/video", { method: "POST", body: fd })
         .then(r => r.json()).then(d => {
