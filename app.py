@@ -2306,20 +2306,12 @@ def bulk_pexels():
 @app.route('/admin/upload_pexels_live')
 @login_required
 def upload_pexels_live():
-    urls = [
-        "https://videos.pexels.com/video-files/3130284/3130284-uhd_1440_2560_30fps.mp4",
-        "https://videos.pexels.com/video-files/2099568/2099568-uhd_1440_2560_30fps.mp4",
-        "https://videos.pexels.com/video-files/3129671/3129671-uhd_1440_2560_30fps.mp4",
-        "https://videos.pexels.com/video-files/2795750/2795750-uhd_1440_2560_25fps.mp4",
-        "https://videos.pexels.com/video-files/3015510/3015510-uhd_1440_2560_24fps.mp4",
-    ]
+    urls = ['https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4', 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4', 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4', 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4', 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4', 'https://www.w3schools.com/html/mov_bbb.mp4', 'https://www.w3schools.com/html/movie.mp4', 'https://media.w3.org/2010/05/sintel/trailer.mp4', 'https://media.w3.org/2010/05/bunny/trailer.mp4', 'https://media.w3.org/2010/05/video/movie_300.mp4', 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4', 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/friday.mp4']
     
-    # تأكد أن المستخدم الحالي موجود في قاعدة البيانات
     current_user_id = current_user.id
-    
     html = '<html dir="rtl"><head><meta charset="UTF-8"><title>رفع مباشر</title><style>body{font-family:sans-serif;background:#111;color:#fff;padding:20px;line-height:1.6}.success{color:#28a745;background:#1a3a1a;padding:10px;border-radius:5px;margin:5px 0}.error{color:#ff6b6b;background:#3a1a1a;padding:10px;border-radius:5px;margin:5px 0}</style></head><body>'
-    html += '<h1>⬆️ الرفع المباشر (5 فيديوهات)</h1>'
-    html += f'<p>المستخدم الحالي ID: {current_user_id}</p>'
+    html += '<h1>⬆️ الرفع المباشر (Google URLs)</h1>'
+    html += '<p>User ID: ' + str(current_user_id) + '</p>'
     
     for i, url in enumerate(urls):
         try:
@@ -2328,17 +2320,15 @@ def upload_pexels_live():
             if '/video/upload/' in cloud_url:
                 cloud_url = cloud_url.replace('/video/upload/', '/video/upload/q_auto,f_auto/')
             
-            v = Video(filename=cloud_url, caption=f"تصميم سينمائي {i+1} 🎬", user_id=current_user_id, views=1000, likes_count=100)
+            v = Video(filename=cloud_url, caption='تصميم ' + str(i+1) + ' 🎬', user_id=current_user_id, views=1000, likes_count=100)
             db.session.add(v)
             db.session.commit()
-            html += f'<div class="success">✅ فيديو {i+1} نجح: {cloud_url[:60]}...</div>'
+            html += '<div class="success">✅ فيديو ' + str(i+1) + ' نجح</div>'
         except Exception as e:
             db.session.rollback()
-            html += f'<div class="error">❌ فيديو {i+1} فشل: {str(e)[:200]}</div>'
+            html += '<div class="error">❌ فيديو ' + str(i+1) + ' فشل: ' + str(e)[:200] + '</div>'
     
-    html += '<h2>النتيجة النهائية:</h2>'
     total = Video.query.count()
-    html += f'<p>عدد الفيديوهات في قاعدة البيانات الآن: <strong>{total}</strong></p>'
-    html += '<a href="/" style="color:#fe2c55;">← الرئيسية</a>'
-    html += '</body></html>'
+    html += '<h2>العدد النهائي: ' + str(total) + '</h2>'
+    html += '<a href="/" style="color:#fe2c55;">← الرئيسية</a></body></html>'
     return html
