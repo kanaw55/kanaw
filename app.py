@@ -649,7 +649,7 @@ def profile(username):
     can_view = not is_blocked and (not user.is_private or (current_user.is_authenticated and (is_following or current_user.id == user.id)))
     videos = Video.query.filter_by(user_id=user.id).order_by(Video.id.desc()).limit(50).all() if can_view else []
     liked_vids = Video.query.join(likes).filter(likes.c.user_id == user.id).order_by(Video.id.desc()).limit(50).all() if can_view else []
-    saved_vids = Video.query.join(saves).filter(saves.c.user_id == user.id).order_by(Video.id.desc()).limit(50).all() if can_view and current_user.id == user.id else []
+    saved_vids = Video.query.join(saves).filter(saves.c.user_id == user.id).order_by(Video.id.desc()).limit(50).all() if can_view and current_user.is_authenticated and current_user.id == user.id else []
     return render_template('profile.html', user=user, videos=videos, liked_vids=liked_vids, saved_vids=saved_vids, total_likes=sum(v.likes_count for v in videos), is_following=is_following, has_requested=has_requested, can_view=can_view, followers_count=user.followers.count(), following_count=user.followed.count(), is_blocked=is_blocked)
 
 @app.route('/profile/<username>/followers')
@@ -666,15 +666,29 @@ def following_list(username):
 @login_required
 def toggle_follow(user_id):
     user = User.query.get_or_404(user_id)
-    if user == current_user: return redirect(url_for('profile', username=user.username))
-    if current_user.followed.filter(followers.c.followed_id == user.id).count() > 0: current_user.followed.remove(user)
+    if user == current_user:
+        return redirect(url_for('profile', username=user.username))
+    
+    is_following = current_user.followed.filter(followers.c.followed_id == user.id).count() > 0
+    
+    if is_following:
+        current_user.followed.remove(user)
+        db.session.commit()
+        flash('تم إلغاء المتابعة')
     else:
         if user.is_private:
             if not FollowRequest.query.filter_by(sender_id=current_user.id, receiver_id=user.id).first():
                 db.session.add(FollowRequest(sender_id=current_user.id, receiver_id=user.id))
                 db.session.add(Notification(user_id=user.id, sender_id=current_user.id, type='follow_request'))
-        else: current_user.followed.append(user); db.session.add(Notification(user_id=user.id, sender_id=current_user.id, type='follow'))
-    db.session.commit(); return redirect(request.referrer or url_for('profile', username=user.username))
+                db.session.commit()
+                flash('تم إرسال طلب المتابعة')
+        else:
+            current_user.followed.append(user)
+            db.session.add(Notification(user_id=user.id, sender_id=current_user.id, type='follow'))
+            db.session.commit()
+            flash('تمت المتابعة')
+    
+    return redirect(url_for('profile', username=user.username))
 
 @app.route('/accept_request/<int:req_id>')
 @login_required

@@ -43,3 +43,15 @@
     </div>
 </div>
 {% endfor %}
+
+        <script>
+        async function followUser(userId, btn) {
+            btn.disabled = true; btn.innerText = '...';
+            try {
+                const res = await fetch('/toggle_follow/' + userId);
+                if (res.ok) { btn.innerText = 'تمت ✓'; btn.style.background = '#28a745'; setTimeout(() => { btn.style.display = 'none'; }, 1500); }
+                else { btn.innerText = 'خطأ'; btn.disabled = false; }
+            } catch (e) { btn.innerText = 'خطأ'; btn.disabled = false; }
+        }
+        </script>
+        
