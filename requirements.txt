@@ -7,3 +7,4 @@ cloudinary
 psycopg[binary]
 psycopg[binary]
 psycopg[binary]
+yt-dlp

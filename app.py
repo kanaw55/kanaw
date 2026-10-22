@@ -1872,3 +1872,52 @@ def upload_premium(idx):
         next_btn = '<meta http-equiv="refresh" content="1;url=/admin/upload_premium/' + str(idx+1) + '">'
         return '<html dir="rtl"><head>' + next_btn + '</head><body style="background:#111;color:#fff;text-align:center;"><h2>⚠️ فشل رفع الفيديو ' + str(idx+1) + ' (تخطي)</h2><p>' + str(e)[:100] + '</p></body></html>'
 
+
+try:
+    import yt_dlp
+except ImportError:
+    yt_dlp = None
+import tempfile
+import os
+
+@app.route('/admin/fetch_media', methods=['GET', 'POST'])
+@login_required
+def fetch_media():
+    result_msg = ""
+    if request.method == 'POST':
+        url = request.form.get('video_url', '').strip()
+        caption = request.form.get('caption', 'فيديو جديد').strip()
+        
+        if url:
+            try:
+                temp_dir = tempfile.mkdtemp()
+                ydl_opts = {
+                    'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+                    'outtmpl': os.path.join(temp_dir, 'video.%(ext)s'),
+                    'quiet': True,
+                    'no_warnings': True,
+                    'nocheckcertificate': True,
+                    'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                }
+                
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(url, download=True)
+                    filepath = ydl.prepare_filename(info)
+                
+                res = cloudinary.uploader.upload(filepath, resource_type="video", folder="imported")
+                cloud_url = res['secure_url']
+                if '/video/upload/' in cloud_url:
+                    cloud_url = cloud_url.replace('/video/upload/', '/video/upload/q_auto,f_auto/')
+                
+                v = Video(filename=cloud_url, caption=caption, user_id=current_user.id, views=random.randint(100, 5000), likes_count=random.randint(10, 500))
+                db.session.add(v)
+                db.session.commit()
+                
+                os.remove(filepath)
+                os.rmdir(temp_dir)
+                
+                result_msg = '<div style="color:#28a745; background:#1a3a1a; padding:15px; border-radius:8px; margin-bottom:15px;">✅ تم السحب والرفع! <a href="/" style="color:#00f2fe;">اذهب للرئيسية</a></div>'
+            except Exception as e:
+                result_msg = '<div style="color:#ff6b6b; background:#3a1a1a; padding:15px; border-radius:8px; margin-bottom:15px;">❌ فشل: ' + str(e) + '</div>'
+    
+    return '<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>سحب الفيديوهات</title><style>body{font-family:sans-serif;background:#111;color:#fff;padding:20px;max-width:600px;margin:0 auto}input{width:100%;padding:12px;margin:10px 0;border-radius:8px;border:none;background:#222;color:#fff;box-sizing:border-box}button{width:100%;padding:15px;background:#fe2c55;color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:bold;cursor:pointer}</style></head><body><h1>🪄 سحب فيديو من أي موقع</h1><p style="color:#888;font-size:14px;">ضع الرابط، والسيرفر سيحمّل الفيديو ويرفعه لـ Cloudinary.</p>' + result_msg + '<form method="POST"><input type="url" name="video_url" placeholder="https://www.tiktok.com/..." required><input type="text" name="caption" placeholder="وصف الفيديو" value="فيديو مميز"><button type="submit">⬇️ سحب ورفع</button></form></body></html>'
