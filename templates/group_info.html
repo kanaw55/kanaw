@@ -65,6 +65,10 @@
     <div class="modal" id="editModal">
         <h3>تعديل معلومات المجموعة</h3>
         <form method="POST" action="/group/{{ group.id }}/update_info" enctype="multipart/form-data">
+            {% if current_user.id == group.creator_id %}
+            <label style="display:block; margin-bottom:5px; font-size:13px; color:#aaa;">اسم المجموعة</label>
+            <input type="text" name="name" value="{{ group.name }}" style="width:100%; padding:10px; background:#333; border:none; border-radius:8px; color:white; margin-bottom:10px;" required>
+            {% endif %}
             <label style="display:block; margin-bottom:5px; font-size:13px; color:#aaa;">وصف المجموعة</label>
             <textarea name="description">{{ group.description }}</textarea>
             <div style="margin-top: 15px;">

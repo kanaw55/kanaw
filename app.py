@@ -87,6 +87,7 @@ class Comment(db.Model):
 class Story(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    group_id = db.Column(db.Integer, db.ForeignKey('chat_group.id'), nullable=True)
     media_url = db.Column(db.String(500), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user = db.relationship('User', backref='stories')
@@ -234,19 +235,22 @@ def inbox():
 @login_required
 def update_group_info(group_id):
     group = ChatGroup.query.get_or_404(group_id)
-    if current_user not in group.admins: return "غير مصرح", 403
-        
+    if current_user.id != group.creator_id:
+        if current_user not in group.admins or group.restrict_edit_info:
+            return "غير مصرح", 403
+    
+    new_name = request.form.get('name')
+    if new_name and current_user.id == group.creator_id:
+        group.name = new_name.strip()
+    
     if 'group_pic' in request.files:
         file = request.files['group_pic']
         if file and file.filename != '':
             res = cloudinary.uploader.upload(file, resource_type="image")
             group.group_pic = res.get('secure_url')
-            
     if request.form.get('description') is not None:
         group.description = request.form.get('description')
-        
     group.join_approval = True if request.form.get('join_approval') == 'on' else False
-        
     db.session.commit()
     return redirect(url_for('group_info', group_id=group_id))
 
@@ -296,22 +300,66 @@ def clear_chat(group_id):
     db.session.commit()
     return redirect(url_for('chat_group', group_id=group_id))
 
-@app.route('/group_info/<int:group_id>')
+@app.route('/group/<int:group_id>/add_story', methods=['POST'])
+@login_required
+def add_group_story(group_id):
+    group = ChatGroup.query.get_or_404(group_id)
+    if current_user not in group.members: return "غير مصرح", 403
+    file = request.files.get('story')
+    if file:
+        res = cloudinary.uploader.upload(file, resource_type="image")
+        db.session.add(Story(user_id=current_user.id, group_id=group.id, media_url=res.get('secure_url')))
+        db.session.commit()
+    return redirect(url_for('chat_group', group_id=group_id))
 
+@app.route('/group/<int:group_id>/stories')
+@login_required
+def group_stories(group_id):
+    group = ChatGroup.query.get_or_404(group_id)
+    if current_user not in group.members: return "غير مصرح", 403
+    stories = Story.query.filter(
+        Story.group_id == group.id,
+        Story.created_at >= datetime.utcnow() - timedelta(days=1)
+    ).order_by(Story.created_at.desc()).all()
+    return jsonify([{'id': s.id, 'url': s.media_url, 'user': s.user.username, 'pic': s.user.profile_pic} for s in stories])
+
+@app.route('/group_info/<int:group_id>')
 @login_required
 def group_info(group_id):
     group = ChatGroup.query.get_or_404(group_id)
     if current_user not in group.members: return "غير مصرح", 403
+    
+    # إصلاح المجموعات القديمة تلقائياً
+    changed = False
     if not group.invite_code:
         group.invite_code = str(uuid.uuid4())[:8]
+        changed = True
+    if group.description is None:
+        group.description = 'مرحباً بكم في المجموعة!'
+        changed = True
+    if group.join_approval is None:
+        group.join_approval = False
+        changed = True
+    if group.restrict_edit_info is None:
+        group.restrict_edit_info = False
+        changed = True
+    if group.restrict_send_messages is None:
+        group.restrict_send_messages = False
+        changed = True
+    if group.restrict_add_members is None:
+        group.restrict_add_members = False
+        changed = True
+    
+    # التأكد من أن المالك مشرف
+    if current_user.id == group.creator_id and current_user not in group.admins:
+        group.admins.append(current_user)
+        changed = True
+    
+    if changed:
         db.session.commit()
-        
-    # جلب الأصدقاء (الذين أتابعهم) والذين ليسوا في المجموعة
+    
     friends_not_in_group = [u for u in current_user.followed if u not in group.members]
-    
-    # جلب طلبات الانضمام
     join_requests = GroupJoinRequest.query.filter_by(group_id=group.id).all()
-    
     return render_template('group_info.html', group=group, friends_not_in_group=friends_not_in_group, group_join_requests=join_requests, is_admin=(current_user in group.admins))
 
 @app.route('/group/<int:group_id>/update_info', methods=['POST'])

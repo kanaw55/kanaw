@@ -36,7 +36,40 @@
         </h3>
     </div>
 
-    <div class="chat-box" id="chatBox">
+    
+    {% if group and group_stories %}
+    <div style="display:flex; overflow-x:auto; padding:10px; gap:12px; background:#1a1a1a; border-bottom:1px solid #333;">
+        {% for story in group_stories %}
+        <div onclick="viewGroupStory('{{ story.media_url }}', '{{ story.user.username }}')" style="display:flex; flex-direction:column; align-items:center; cursor:pointer; flex-shrink:0;">
+            <div style="width:55px; height:55px; border-radius:50%; border:3px solid #fe2c55; padding:2px; overflow:hidden;">
+                {% if story.user.profile_pic %}<img src="{{ story.user.profile_pic }}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">{% else %}<div style="width:100%;height:100%;display:flex;justify-content:center;align-items:center;font-size:24px;">👤</div>{% endif %}
+            </div>
+            <span style="font-size:11px; color:#fff; margin-top:3px; max-width:55px; overflow:hidden; text-overflow:ellipsis;">{{ story.user.username }}</span>
+        </div>
+        {% endfor %}
+        {% if group and current_user in group.members %}
+        <label for="groupStoryInput" style="display:flex; flex-direction:column; align-items:center; cursor:pointer; flex-shrink:0;">
+            <div style="width:55px; height:55px; border-radius:50%; background:#222; border:2px dashed #fe2c55; display:flex; justify-content:center; align-items:center; font-size:24px; color:#fe2c55;">+</div>
+            <span style="font-size:11px; color:#aaa; margin-top:3px;">إضافة قصة</span>
+        </label>
+        <form id="groupStoryForm" method="POST" action="/group/{{ group.id }}/add_story" enctype="multipart/form-data" style="display:none;">
+            <input type="file" name="story" id="groupStoryInput" accept="image/*" onchange="document.getElementById('groupStoryForm').submit();">
+        </form>
+        {% endif %}
+    </div>
+    <div id="groupStoryViewer" onclick="this.style.display='none'; document.getElementById('groupStoryImg').src='';" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:99999; justify-content:center; align-items:center; flex-direction:column;">
+        <span id="groupStoryUser" style="color:white; position:absolute; top:20px; right:20px; font-weight:bold; font-size:16px;"></span>
+        <img id="groupStoryImg" src="" style="max-width:100%; max-height:90vh; object-fit:contain;">
+    </div>
+    <script>
+    function viewGroupStory(url, username) {
+        document.getElementById('groupStoryViewer').style.display = 'flex';
+        document.getElementById('groupStoryImg').src = url;
+        document.getElementById('groupStoryUser').innerText = '@' + username;
+    }
+    </script>
+    
+<div class="chat-box" id="chatBox">
 
     {% if pinned_message %}
     <div style="background: #222; border-right: 4px solid #fe2c55; padding: 10px; margin: 10px; border-radius: 5px; font-size: 13px; text-align: right;">
