@@ -39,19 +39,6 @@ db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
-@app.before_request
-def update_last_seen():
-    if current_user.is_authenticated:
-        now = datetime.utcnow()
-        ls = getattr(current_user, 'last_seen', None)
-        if not ls or (now - ls).total_seconds() > 60:
-            try:
-                current_user.last_seen = now
-                db.session.commit()
-            except Exception:
-                db.session.rollback()
-
-
 @login_manager.unauthorized_handler
 def unauthorized():
     login_url = url_for('login', next=request.referrer or request.path)
@@ -80,7 +67,6 @@ class User(UserMixin, db.Model):
     bio = db.Column(db.String(200), default="مرحباً! أنا أستخدم تطبيق Kanaw.")
     is_private = db.Column(db.Boolean, default=False)
     is_verified = db.Column(db.Boolean, default=False)
-    last_seen = db.Column(db.DateTime, default=datetime.utcnow)
     is_admin = db.Column(db.Boolean, default=False)
     followed = db.relationship('User', secondary=followers, primaryjoin=(followers.c.follower_id == id), secondaryjoin=(followers.c.followed_id == id), backref=db.backref('followers', lazy='dynamic'), lazy='dynamic')
     liked_videos = db.relationship('Video', secondary=likes, backref=db.backref('liked_by', lazy='dynamic'))
@@ -157,14 +143,6 @@ class Message(db.Model):
     receiver = db.relationship('User', foreign_keys=[receiver_id], backref='received_messages')
     reply_to = db.relationship('Message', remote_side=[id], foreign_keys=[reply_to_id], backref='message_replies')
 
-
-class TypingStatus(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    target_id = db.Column(db.Integer)
-    is_group = db.Column(db.Boolean, default=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-
 class Notification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
@@ -203,11 +181,6 @@ class Report(db.Model):
 def load_user(user_id): return User.query.get(int(user_id))
 
 @app.context_processor
-
-@app.context_processor
-def inject_now():
-    return {'now': datetime.utcnow()}
-
 def inject_notifications():
     if current_user.is_authenticated:
         return dict(unread_notifications=Notification.query.filter_by(user_id=current_user.id, is_read=False).count())
@@ -220,18 +193,17 @@ def linkify(text):
     # تحويل الروابط إلى a tags
     return re.sub(r'(https?://[^\s]+|www\.[^\s]+)', r'<a href="\1" target="_blank" style="color:#00f2fe; text-decoration:underline;">\1</a>', text)
 
-
 @app.template_filter('format_text')
 def format_text(text):
-    if not text: return text
+    if not text:
+        return text
     from markupsafe import Markup, escape
-    # 1. تحويل النص الآمن
-    s = str(escape(str(text)))
-    # 2. تحويل الروابط
+    s = str(escape(text))
     s = re.sub(r'(https?://[^\s]+|www\.[^\s]+)', r'<a href="\1" target="_blank" style="color:#00f2fe;text-decoration:underline;">\1</a>', s)
-    # 3. تحويل الهاشتاجات
     s = re.sub(r'#(\w+)', r'<a href="/hashtag/\1" style="color:#00f2ea;text-decoration:none;">#\1</a>', s)
     return Markup(s)
+
+@app.template_filter('hashtag')
 
 def hashtag_filter(text):
     if not text: return text
@@ -1149,34 +1121,6 @@ def api_chat_video():
         return jsonify({'success': True, 'url': url})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-
-
-
-@app.route('/api/typing', methods=['POST'])
-@login_required
-def api_typing():
-    data = request.get_json() or {}
-    target_id = data.get('target_id')
-    is_group = bool(data.get('is_group', False))
-    if not target_id: return jsonify({'ok': False}), 400
-    TypingStatus.query.filter_by(user_id=current_user.id, target_id=target_id, is_group=is_group).delete()
-    db.session.add(TypingStatus(user_id=current_user.id, target_id=target_id, is_group=is_group))
-    db.session.commit()
-    return jsonify({'ok': True})
-
-@app.route('/api/typing/status')
-@login_required
-def api_typing_status():
-    target_id = request.args.get('target_id', type=int)
-    is_group = request.args.get('is_group', 'false').lower() == 'true'
-    if not target_id: return jsonify({'typing': False})
-    cutoff = datetime.utcnow() - timedelta(seconds=4)
-    rows = TypingStatus.query.filter(TypingStatus.target_id == target_id, TypingStatus.is_group == is_group, TypingStatus.timestamp >= cutoff, TypingStatus.user_id != current_user.id).all()
-    names = [User.query.get(r.user_id).username for r in rows if User.query.get(r.user_id)]
-    if names:
-        return jsonify({'typing': True, 'text': ', '.join('@'+n for n in names) + (' يكتب...' if len(names)==1 else ' يكتبون...')})
-    return jsonify({'typing': False})
-
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
