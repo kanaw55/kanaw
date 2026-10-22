@@ -1799,3 +1799,76 @@ def test_upload():
         result.append(f"\n⚠️ لا يمكن قراءة الاستخدام: {str(e)[:200]}")
     
     return '<html dir="rtl"><body style="font-family:sans-serif;background:#111;color:#fff;padding:20px;"><h1>🔍 نتائج التشخيص</h1><pre style="background:#222;padding:20px;border-radius:8px;direction:ltr;text-align:left;white-space:pre-wrap;word-break:break-all;">' + '\n\n'.join(result) + '</pre><a href="/admin/batch_seed" style="color:#fe2c55;">← رجوع</a></body></html>'
+
+# ============================================================
+# رفع 10 فيديوهات ريلز سينمائية مميزة عبر Cloudinary
+# ============================================================
+
+_PREMIUM_REELS = [
+    # (رابط الفيديو، العنوان الإبداعي)
+    ("https://videos.pexels.com/video-files/3130284/3130284-uhd_1440_2560_30fps.mp4", "الهدوء قبل العاصفة 🌪️ #تصميم"),
+    ("https://videos.pexels.com/video-files/2099568/2099568-uhd_1440_2560_30fps.mp4", "عندما تلتقي الألوان بالضوء 🎨 #إبداع"),
+    ("https://videos.pexels.com/video-files/3129671/3129671-uhd_1440_2560_30fps.mp4", "تفاصيل صغيرة تصنع فرقاً كبيراً ✨ #تصميم"),
+    ("https://videos.pexels.com/video-files/2795750/2795750-uhd_1440_2560_25fps.mp4", "رؤية مختلفة للعالم 🌍 #إلهام"),
+    ("https://videos.pexels.com/video-files/3130284/3130284-uhd_1440_2560_30fps.mp4", "التقنية تلتقي بالفن 📱 #تقنية"),
+    ("https://videos.pexels.com/video-files/2099568/2099568-uhd_1440_2560_30fps.mp4", "ألوان تروي قصة 🎭 #فن"),
+    ("https://videos.pexels.com/video-files/3129671/3129671-uhd_1440_2560_30fps.mp4", "لا شيء مستحيل مع التركيز 💡 #تحفيز"),
+    ("https://videos.pexels.com/video-files/2795750/2795750-uhd_1440_2560_25fps.mp4", "استكشاف ما وراء المألوف 🚀 #إبداع"),
+    ("https://videos.pexels.com/video-files/3130284/3130284-uhd_1440_2560_30fps.mp4", "الظلال تحكي قصصاً 🌑 #تصميم"),
+    ("https://videos.pexels.com/video-files/2099568/2099568-uhd_1440_2560_30fps.mp4", "لحظة سكون في عالم صاخب 🍃 #جماليات"),
+]
+
+@app.route('/admin/upload_premium')
+@login_required
+def upload_premium_home():
+    css = 'body{font-family:sans-serif;background:#111;color:#fff;padding:20px;max-width:600px;margin:0 auto;text-align:center}a{text-decoration:none;color:#fff}.btn{display:block;padding:15px;background:#fe2c55;color:#fff;border-radius:8px;margin:10px 0;font-size:16px;font-weight:bold}'
+    html = '<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><style>' + css + '</style></head><body>'
+    html += '<h1>🎬 رفع 10 ريلز سينمائية مميزة</h1>'
+    html += '<p>سيتم رفع الفيديوهات مباشرة إلى Cloudinary بجودة عالية ومضغوطة.</p>'
+    html += '<a href="/admin/upload_premium/0" class="btn">🚀 ابدأ الرفع التلقائي</a>'
+    html += '</body></html>'
+    return html
+
+@app.route('/admin/upload_premium/<int:idx>')
+@login_required
+def upload_premium(idx):
+    if idx >= len(_PREMIUM_REELS):
+        return redirect('/admin/upload_premium')
+    
+    url, caption = _PREMIUM_REELS[idx]
+    
+    # إنشاء صانع محتوى مميز
+    creator = User.query.filter_by(username='premium_reels').first()
+    if not creator:
+        creator = User(username='premium_reels', bio='🎬 ريلز سينمائية مميزة', profile_pic='https://api.dicebear.com/7.x/lorelei/svg?seed=premium_reels&backgroundColor=c0aede', is_verified=False)
+        creator.set_password('curator123456')
+        db.session.add(creator)
+        db.session.commit()
+        
+    try:
+        # رفع إلى Cloudinary باستخدام الرابط المباشر
+        res = cloudinary.uploader.upload(url, resource_type="video", folder="premium")
+        cloud_url = res['secure_url']
+        if '/video/upload/' in cloud_url:
+            cloud_url = cloud_url.replace('/video/upload/', '/video/upload/q_auto,f_auto/')
+            
+        v = Video(filename=cloud_url, caption=caption, user_id=creator.id, views=random.randint(5000, 50000), likes_count=random.randint(500, 5000))
+        db.session.add(v)
+        db.session.commit()
+        
+        next_btn = '<meta http-equiv="refresh" content="2;url=/admin/upload_premium/' + str(idx+1) + '">'
+        css = 'body{font-family:sans-serif;background:#111;color:#fff;padding:20px;text-align:center}.success{background:#1a3a1a;padding:20px;border-radius:8px}'
+        
+        html = '<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8">' + next_btn + '<style>' + css + '</style></head><body>'
+        html += '<div class="success"><h1>✅ تم رفع الفيديو ' + str(idx+1) + ' / 10</h1>'
+        html += '<p>' + caption + '</p></div>'
+        html += '<p style="color:#888;">⏳ جاري الانتقال للفيديو التالي...</p>'
+        html += '</body></html>'
+        return html
+        
+    except Exception as e:
+        db.session.rollback()
+        # في حال فشل الرابط، نتخطاه وننتقل للذي بعده
+        next_btn = '<meta http-equiv="refresh" content="1;url=/admin/upload_premium/' + str(idx+1) + '">'
+        return '<html dir="rtl"><head>' + next_btn + '</head><body style="background:#111;color:#fff;text-align:center;"><h2>⚠️ فشل رفع الفيديو ' + str(idx+1) + ' (تخطي)</h2><p>' + str(e)[:100] + '</p></body></html>'
+
