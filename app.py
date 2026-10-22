@@ -71,6 +71,8 @@ class User(UserMixin, db.Model):
     bio = db.Column(db.String(200), default="مرحباً! أنا أستخدم تطبيق Kanaw.")
     is_private = db.Column(db.Boolean, default=False)
     is_verified = db.Column(db.Boolean, default=False)
+    fake_followers = db.Column(db.BigInteger, default=0)
+    fake_likes = db.Column(db.BigInteger, default=0)
     last_seen = db.Column(db.DateTime, default=datetime.utcnow)
     is_admin = db.Column(db.Boolean, default=False)
     followed = db.relationship('User', secondary=followers, primaryjoin=(followers.c.follower_id == id), secondaryjoin=(followers.c.followed_id == id), backref=db.backref('followers', lazy='dynamic'), lazy='dynamic')
@@ -1014,7 +1016,10 @@ def profile(username):
     videos = Video.query.filter_by(user_id=user.id).order_by(Video.id.desc()).limit(50).all() if can_view else []
     liked_vids = Video.query.join(likes).filter(likes.c.user_id == user.id).order_by(Video.id.desc()).limit(50).all() if can_view else []
     saved_vids = Video.query.join(saves).filter(saves.c.user_id == user.id).order_by(Video.id.desc()).limit(50).all() if can_view and current_user.is_authenticated and current_user.id == user.id else []
-    return render_template('profile.html', user=user, videos=videos, liked_vids=liked_vids, saved_vids=saved_vids, total_likes=sum(v.likes_count for v in videos), is_following=is_following, has_requested=has_requested, can_view=can_view, followers_count=user.followers.count(), following_count=user.followed.count(), is_blocked=is_blocked)
+    real_likes = sum(v.likes_count for v in videos)
+    total_likes = real_likes + (user.fake_likes or 0)
+    total_followers = user.followers.count() + (user.fake_followers or 0)
+    return render_template('profile.html', user=user, videos=videos, liked_vids=liked_vids, saved_vids=saved_vids, total_likes=total_likes, is_following=is_following, has_requested=has_requested, can_view=can_view, followers_count=total_followers, following_count=user.followed.count(), is_blocked=is_blocked)
 
 @app.route('/profile/<username>/followers')
 def followers_list(username):
@@ -1426,125 +1431,3 @@ def api_join_group(code):
 
 
 # ============================================================
-# نظام المحتوى المنسق (50 بوست جاهز)
-# ============================================================
-_SEED_URLS = [
-    "https://www.w3schools.com/html/mov_bbb.mp4",
-    "https://www.w3schools.com/html/movie.mp4",
-    "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
-    "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/friday.mp4",
-    "https://assets.mixkit.co/videos/preview/mixkit-tree-with-yellow-leaves-2763-large.mp4",
-    "https://assets.mixkit.co/videos/preview/mixkit-stars-in-space-1610-large.mp4",
-    "https://assets.mixkit.co/videos/preview/mixkit-forest-stream-in-the-sunlight-529-large.mp4",
-    "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4",
-    "https://test-videos.co.uk/vids/sintel/mp4/h264/360/Sintel_360_10s_1MB.mp4",
-    "https://test-videos.co.uk/vids/jellyfish/mp4/h264/360/Jellyfish_360_10s_1MB.mp4",
-]
-
-# حماية من clear_old_videos_secret
-for _u in _SEED_URLS:
-    if _u not in VALID_VIDEOS:
-        VALID_VIDEOS.append(_u)
-
-_CURATED_CREATORS = {
-    "design_daily": ("🎨 تصميمات احترافية يومياً", "https://i.pravatar.cc/150?u=design_daily"),
-    "motivation_hub": ("💪 جرعة تحفيز يومية", "https://i.pravatar.cc/150?u=motivation_hub"),
-    "anime_lover": ("🌸 عاشق الأنمي", "https://i.pravatar.cc/150?u=anime_lover"),
-    "tech_news": ("📱 أخبار التقنية", "https://i.pravatar.cc/150?u=tech_news"),
-    "aesthetic_daily": ("🍃 جماليات يومية", "https://i.pravatar.cc/150?u=aesthetic_daily"),
-}
-
-_CURATED_CAPTIONS = [
-    # 🎨 تصميم (10)
-    ("design_daily", "تصميم احترافي بأدوات مجانية 🎨 #تصميم"),
-    ("design_daily", "5 نصائح ذهبية للتصميم الجرافيكي ✨ #تصميم"),
-    ("design_daily", "أفضل 10 خطوط عربية للتصميم 📐 #تصميم"),
-    ("design_daily", "كيف تصمم شعار لا يُنسى 🎯 #تصميم"),
-    ("design_daily", "ألوان تخطف الأنظار في تصميماتك 🌈 #تصميم"),
-    ("design_daily", "أدوات UI/UX احترافية مجانية #تصميم"),
-    ("design_daily", "تصميم واجهات تطبيقات احترافية #تصميم"),
-    ("design_daily", "تعلم Figma في 60 ثانية #تصميم"),
-    ("design_daily", "أسرار تصميم الشعارات الناجحة #تصميم"),
-    ("design_daily", "اتجاهات التصميم لعام 2026 #تصميم"),
-    # 💪 تحفيز (10)
-    ("motivation_hub", "لا تستسلم أبداً 💪 #تحفيز"),
-    ("motivation_hub", "النجاح قريب.. استمر 🔥 #تحفيز"),
-    ("motivation_hub", "كل يوم خطوة للأمام 🚀 #تحفيز"),
-    ("motivation_hub", "افعلها الآن أو لا تفعلها أبداً ⚡ #تحفيز"),
-    ("motivation_hub", "ركز على هدفك ولا تنظر للخلف #تحفيز"),
-    ("motivation_hub", "الانضباط أقوى من الحماس #تحفيز"),
-    ("motivation_hub", "أنت أقوى مما تظن 💎 #تحفيز"),
-    ("motivation_hub", "من صفر إلى قمة — كيف تبدأ #تحفيز"),
-    ("motivation_hub", "أصعب قرار هو البداية #تحفيز"),
-    ("motivation_hub", "كل عظيم كان يوماً مبتدئاً #تحفيز"),
-    # 🌸 أنمي (10)
-    ("anime_lover", "أنمي يستحق المشاهدة 🌸 #أنمي"),
-    ("anime_lover", "أفضل مشهد أنمي على الإطلاق 🔥 #أنمي"),
-    ("anime_lover", "أنميات جديدة 2026 لازم تشوفها #أنمي"),
-    ("anime_lover", "لحظات أسطورية في الأنمي ⚔️ #أنمي"),
-    ("anime_lover", "أنمي الأسبوع: مراجعة سريعة #أنمي"),
-    ("anime_lover", "أنمي يحطم قلبك 💔 #أنمي"),
-    ("anime_lover", "أفضل أنميات القتال #أنمي"),
-    ("anime_lover", "أنميات الرومانسية الجميلة 🌹 #أنمي"),
-    ("anime_lover", "أشرار الأنمي الأقوى #أنمي"),
-    ("anime_lover", "أنمي للمبتدئين #أنمي"),
-    # 📱 تقنية (10)
-    ("tech_news", "تكنولوجيا 2026 — ما الجديد؟ 📱 #تقنية"),
-    ("tech_news", "أفضل أدوات الذكاء الاصطناعي #تقنية"),
-    ("tech_news", "هاتف يغير قواعد اللعبة 📱 #تقنية"),
-    ("tech_news", "تعلم البرمجة في 2026 #تقنية"),
-    ("tech_news", "تطبيقات لازم تجربها اليوم #تقنية"),
-    ("tech_news", "أخبار تقنية الأسبوع #تقنية"),
-    ("tech_news", "كيف يعمل الذكاء الاصطناعي؟ 🤖 #تقنية"),
-    ("tech_news", "أدوات مجانية تحل مشاكلك #تقنية"),
-    ("tech_news", "مستقبل السيارات الكهربائية #تقنية"),
-    ("tech_news", "إنترنت الأشياء — هل أنت جاهز؟ #تقنية"),
-    # 🍃 جماليات (10)
-    ("aesthetic_daily", "جمال الطبيعة في 30 ثانية 🍃 #جماليات"),
-    ("aesthetic_daily", "هدوء الصباح ☀️ #جماليات"),
-    ("aesthetic_daily", "مشاهد سينمائية خلابة 🎬 #جماليات"),
-    ("aesthetic_daily", "لحظات هادئة تريح القلب #جماليات"),
-    ("aesthetic_daily", "فن بصري يأسر القلوب 🎨 #جماليات"),
-    ("aesthetic_daily", "غروب الشمس — سحر الطبيعة 🌅 #جماليات"),
-    ("aesthetic_daily", "أصوات الطبيعة للاسترخاء 🌊 #جماليات"),
-    ("aesthetic_daily", "جبال ووديان — مشهد مذهل #جماليات"),
-    ("aesthetic_daily", "سماء النجوم ✨ #جماليات"),
-    ("aesthetic_daily", "لحظات سكون في عالم صاخب #جماليات"),
-]
-
-
-@app.route('/admin/seed_curated_videos')
-@login_required
-def seed_curated_videos():
-    if not current_user.is_admin:
-        return "غير مصرح — يجب أن تكون أدمن", 403
-
-    # 1. إنشاء صانعي المحتوى (إذا لم يكونوا موجودين)
-    created_users = 0
-    for username, (bio, pic) in _CURATED_CREATORS.items():
-        if not User.query.filter_by(username=username).first():
-            u = User(username=username, bio=bio, profile_pic=pic, is_verified=True)
-            u.set_password("curator123456")
-            db.session.add(u)
-            created_users += 1
-    db.session.commit()
-
-    # 2. إضافة الفيديوهات (idempotent)
-    added = 0
-    for i, (creator_name, caption) in enumerate(_CURATED_CAPTIONS):
-        if Video.query.filter_by(caption=caption).first():
-            continue
-        creator = User.query.filter_by(username=creator_name).first()
-        if not creator:
-            continue
-        db.session.add(Video(
-            filename=_SEED_URLS[i % len(_SEED_URLS)],
-            caption=caption,
-            user_id=creator.id,
-            views=random.randint(500, 50000),
-            likes_count=random.randint(50, 5000),
-        ))
-        added += 1
-    db.session.commit()
-
-    return f"✅ أُضيف {added} فيديو جديد، {created_users} صانع محتوى. المجموع الكلي: {Video.query.count()} فيديو."
