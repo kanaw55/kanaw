@@ -509,5 +509,20 @@
 }
 </script>
 
+
+<script>
+document.addEventListener('play', function(e) {
+    if (e.target.tagName === 'VIDEO' || e.target.tagName === 'AUDIO') {
+        // إيقاف وكتم أي وسائط أخرى تعمل في الخلفية
+        document.querySelectorAll('video, audio').forEach(function(media) {
+            if (media !== e.target) {
+                media.pause();
+                if (media.tagName === 'VIDEO') media.muted = true;
+            }
+        });
+    }
+}, true);
+</script>
+
 </body>
 </html>
