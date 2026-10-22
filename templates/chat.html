@@ -814,5 +814,90 @@
     }
     </script>
 
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var chatForm = document.getElementById('chatForm');
+        if (!chatForm) return;
+        
+        // اعتراض حدث الإرسال الافتراضي
+        chatForm.addEventListener('submit', function(e) {
+            e.preventDefault(); 
+            
+            var input = document.getElementById('messageInput');
+            var content = input.value.trim();
+            if (!content) return;
+            
+            var replyTo = document.getElementById('replyToId') ? document.getElementById('replyToId').value : null;
+            var groupId = window.CHAT_CONFIG ? window.CHAT_CONFIG.groupId : null;
+            var receiverId = window.CHAT_CONFIG ? window.CHAT_CONFIG.otherUserId : null;
+            
+            // تفريغ الحقل فوراً
+            input.value = '';
+            var replyInd = document.getElementById('replyIndicator');
+            if (replyInd) replyInd.classList.remove('active');
+            if (document.getElementById('replyToId')) document.getElementById('replyToId').value = '';
+            
+            // إنشاء رسالة وهمية تظهر فوراً
+            var chatBox = document.getElementById('chatBox');
+            var tempId = 'temp_' + Date.now();
+            var timeStr = new Date().toLocaleTimeString('ar-EG', {hour: '2-digit', minute:'2-digit'});
+            
+            var wrapper = document.createElement('div');
+            wrapper.className = 'message-wrapper sent-wrapper';
+            wrapper.id = tempId;
+            wrapper.style.opacity = '0.6'; // شفافة قليلاً حتى يتم التأكيد
+            wrapper.innerHTML = `
+                <div class="message sent">
+                    ${content}
+                    <div class="msg-meta">
+                        <span>${timeStr}</span> <i class="fa-solid fa-clock" style="font-size:10px;"></i>
+                    </div>
+                </div>
+            `;
+            chatBox.appendChild(wrapper);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            
+            // إرسال للخادم في الخلفية
+            fetch('/api/chat/send', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    content: content,
+                    group_id: groupId,
+                    receiver_id: receiverId,
+                    reply_to_id: replyTo
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                var el = document.getElementById(tempId);
+                if (data.success) {
+                    if (el) {
+                        el.style.opacity = '1'; // أصبحت غير شفافة (تم الإرسال)
+                        el.removeAttribute('id');
+                        var meta = el.querySelector('.msg-meta');
+                        meta.innerHTML = `<span>${data.timestamp}</span>`;
+                    }
+                } else {
+                    if (el) {
+                        el.style.background = 'rgba(255,0,0,0.2)'; // خلفية حمراء للفشل
+                        var meta = el.querySelector('.msg-meta');
+                        meta.innerHTML = '<span style="color:red;">❌ فشل الإرسال</span>';
+                    }
+                }
+            })
+            .catch(() => {
+                var el = document.getElementById(tempId);
+                if (el) {
+                    el.style.background = 'rgba(255,0,0,0.2)';
+                    var meta = el.querySelector('.msg-meta');
+                    meta.innerHTML = '<span style="color:red;">❌ انقطع الاتصال</span>';
+                }
+            });
+        });
+    });
+    </script>
+
 </body>
 </html>

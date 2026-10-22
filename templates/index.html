@@ -243,17 +243,35 @@
         }
 
         async function postComment() {
-            if (!isAuthenticated) return window.location.href='/register';
+            if (!isAuthenticated) return window.location.href='/login';
             const content = document.getElementById('commentInput').value.trim();
             if (!content || !currentVideoId) return;
-            const res = await fetch(`/api/comment/${currentVideoId}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content: content })
-            });
-            if (res.ok) {
-                document.getElementById('commentInput').value = '';
-                loadComments(currentVideoId);
+            
+            const btn = document.querySelector('button[onclick="postComment()"]');
+            if(btn) btn.disabled = true;
+
+            try {
+                const res = await fetch(`/api/comment/${currentVideoId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: content })
+                });
+                
+                if (res.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
+                
+                if (res.ok) {
+                    document.getElementById('commentInput').value = '';
+                    loadComments(currentVideoId);
+                } else {
+                    alert('فشل إرسال التعليق. الرجاء المحاولة مرة أخرى.');
+                }
+            } catch (e) {
+                alert('خطأ في الاتصال بالشبكة.');
+            } finally {
+                if(btn) btn.disabled = false;
             }
         }
 
@@ -296,7 +314,24 @@
         }
         function closeShareModal() { document.getElementById('shareBackdrop').classList.remove('active'); document.getElementById('shareModal').classList.remove('active'); }
         function sendVideoTo(userId) {
-            fetch(`/api/share_video/${shareVideoId}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({receiver_id: userId}) }).then(res => res.json()).then(data => { if(data.success) { alert('تم إرسال الفيديو!'); closeShareModal(); } });
+            fetch(`/api/share_video/${shareVideoId}`, { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify({receiver_id: userId}) 
+            })
+            .then(res => {
+                if(res.status === 401) { window.location.href = '/login'; return; }
+                return res.json();
+            })
+            .then(data => { 
+                if(data && data.success) { 
+                    alert('تم إرسال الفيديو!'); 
+                    closeShareModal(); 
+                } else if(data) {
+                    alert('فشل المشاركة: ' + (data.error || 'خطأ غير معروف'));
+                }
+            })
+            .catch(() => alert('خطأ في الاتصال بالشبكة.'));
         }
         let shareVideoId = null;
         
