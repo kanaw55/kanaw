@@ -721,22 +721,48 @@
     </div>
 
 
+    
+
+
     <script>
+    // قوية لاعتراض أي ضغطة على رابط مجموعة
+    document.addEventListener('click', function(e) {
+        var a = e.target.closest('a');
+        if (!a) return;
+        var href = a.getAttribute('href');
+        
+        // التحقق من أن الرابط يحتوي على join_group
+        if (href && href.indexOf('/join_group/') !== -1) {
+            // إذا كان داخلياً (يبدأ بـ / أو ينتهي بالدومين حقنا)
+            if (href.indexOf('kanaw-1.onrender.com') !== -1 || href.indexOf('/join_group/') === 0) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                
+                // استخراج الكود
+                var match = href.match(/\/join_group\/([^\/\?#]+)/);
+                if (match && match[1]) {
+                    openJoinModal(match[1]);
+                }
+            }
+        }
+    }, true); // true = Capture phase لضمان الاصطياد قبل أي حدث آخر
+
     function openJoinModal(code) {
         fetch('/api/group_preview/' + code)
-            .then(r => r.json())
-            .then(data => {
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
                 if (!data.success) {
                     alert('رابط غير صالح أو المجموعة غير موجودة');
                     return;
                 }
-                const modal = document.getElementById('joinGroupModal');
-                const pic = document.getElementById('joinGroupPic');
-                const name = document.getElementById('joinGroupName');
-                const members = document.getElementById('joinGroupMembers');
-                const desc = document.getElementById('joinGroupDesc');
-                const readMore = document.getElementById('joinReadMoreBtn');
-                const actions = document.getElementById('joinModalActions');
+                var modal = document.getElementById('joinGroupModal');
+                var pic = document.getElementById('joinGroupPic');
+                var name = document.getElementById('joinGroupName');
+                var members = document.getElementById('joinGroupMembers');
+                var desc = document.getElementById('joinGroupDesc');
+                var readMore = document.getElementById('joinReadMoreBtn');
+                var actions = document.getElementById('joinModalActions');
 
                 if (data.pic) pic.innerHTML = '<img src="' + data.pic + '">';
                 else pic.innerHTML = '<i class="fa-solid fa-users"></i>';
@@ -748,10 +774,9 @@
                     desc.textContent = data.description;
                     desc.classList.remove('expanded');
                     readMore.style.display = 'none';
-                    setTimeout(() => {
+                    setTimeout(function() {
                         if (desc.scrollHeight > desc.clientHeight) {
                             readMore.style.display = 'block';
-                            readMore.textContent = 'قراءة المزيد';
                         }
                     }, 10);
                 } else {
@@ -762,23 +787,23 @@
                 if (data.already_member) {
                     actions.innerHTML = '<button class="join-btn-primary" onclick="window.location.href=\x27/chat_group/' + data.group_id + '\x27">فتح المجموعة</button>';
                 } else {
-                    const btnText = data.join_approval ? 'إرسال طلب انضمام' : 'انضمام للمجموعة';
+                    var btnText = data.join_approval ? 'إرسال طلب انضمام' : 'انضمام للمجموعة';
                     actions.innerHTML = '<form method="POST" action="/join_group/' + code + '/confirm" style="margin:0;"><button type="submit" class="join-btn-primary">' + btnText + '</button></form>';
                     actions.innerHTML += '<button class="join-btn-secondary" onclick="closeJoinModal()">إلغاء</button>';
                 }
-
                 modal.classList.add('active');
             })
-            .catch(() => alert('حدث خطأ في تحميل معلومات المجموعة'));
+            .catch(function() { alert('حدث خطأ في تحميل المعلومات'); });
     }
 
     function closeJoinModal() {
-        document.getElementById('joinGroupModal').classList.remove('active');
+        var m = document.getElementById('joinGroupModal');
+        if (m) m.classList.remove('active');
     }
 
     function toggleJoinDesc() {
-        const desc = document.getElementById('joinGroupDesc');
-        const btn = document.getElementById('joinReadMoreBtn');
+        var desc = document.getElementById('joinGroupDesc');
+        var btn = document.getElementById('joinReadMoreBtn');
         if (desc.classList.contains('expanded')) {
             desc.classList.remove('expanded');
             btn.textContent = 'قراءة المزيد';
@@ -787,20 +812,6 @@
             btn.textContent = 'عرض أقل';
         }
     }
-
-    document.addEventListener('click', function(e) {
-        const a = e.target.closest('a');
-        if (!a) return;
-        const href = a.getAttribute('href');
-        if (href && href.includes('/join_group/')) {
-            const isInternal = href.startsWith('/') || href.includes('kanaw-1.onrender.com');
-            if (isInternal) {
-                e.preventDefault();
-                const match = href.match(/\/join_group\/([^\/\?#]+)/);
-                if (match && match[1]) openJoinModal(match[1]);
-            }
-        }
-    });
     </script>
 
 </body>
