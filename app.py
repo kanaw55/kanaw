@@ -67,6 +67,7 @@ class User(UserMixin, db.Model):
     bio = db.Column(db.String(200), default="مرحباً! أنا أستخدم تطبيق Kanaw.")
     is_private = db.Column(db.Boolean, default=False)
     is_verified = db.Column(db.Boolean, default=False)
+    last_seen = db.Column(db.DateTime, default=datetime.utcnow)
     is_admin = db.Column(db.Boolean, default=False)
     followed = db.relationship('User', secondary=followers, primaryjoin=(followers.c.follower_id == id), secondaryjoin=(followers.c.followed_id == id), backref=db.backref('followers', lazy='dynamic'), lazy='dynamic')
     liked_videos = db.relationship('Video', secondary=likes, backref=db.backref('liked_by', lazy='dynamic'))
@@ -142,6 +143,14 @@ class Message(db.Model):
     sender = db.relationship('User', foreign_keys=[sender_id], backref='sent_messages')
     receiver = db.relationship('User', foreign_keys=[receiver_id], backref='received_messages')
     reply_to = db.relationship('Message', remote_side=[id], foreign_keys=[reply_to_id], backref='message_replies')
+
+
+class TypingStatus(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    target_id = db.Column(db.Integer)
+    is_group = db.Column(db.Boolean, default=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
 class Notification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -1126,6 +1135,33 @@ def api_chat_video():
         return jsonify({'success': True, 'url': url})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+
+@app.route('/api/typing', methods=['POST'])
+@login_required
+def api_typing():
+    data = request.get_json() or {}
+    target_id = data.get('target_id')
+    is_group = bool(data.get('is_group', False))
+    if not target_id: return jsonify({'ok': False}), 400
+    TypingStatus.query.filter_by(user_id=current_user.id, target_id=target_id, is_group=is_group).delete()
+    db.session.add(TypingStatus(user_id=current_user.id, target_id=target_id, is_group=is_group))
+    db.session.commit()
+    return jsonify({'ok': True})
+
+@app.route('/api/typing/status')
+@login_required
+def api_typing_status():
+    target_id = request.args.get('target_id', type=int)
+    is_group = request.args.get('is_group', 'false').lower() == 'true'
+    if not target_id: return jsonify({'typing': False})
+    cutoff = datetime.utcnow() - timedelta(seconds=4)
+    rows = TypingStatus.query.filter(TypingStatus.target_id == target_id, TypingStatus.is_group == is_group, TypingStatus.timestamp >= cutoff, TypingStatus.user_id != current_user.id).all()
+    names = [User.query.get(r.user_id).username for r in rows if User.query.get(r.user_id)]
+    if names:
+        return jsonify({'typing': True, 'text': ', '.join('@'+n for n in names) + (' يكتب...' if len(names)==1 else ' يكتبون...')})
+    return jsonify({'typing': False})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
