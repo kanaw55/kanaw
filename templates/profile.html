@@ -1,160 +1,90 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>صفحة {{ user.username }}</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { font-family: sans-serif; background: #111; color: #fff; margin: 0; text-align: center; padding-bottom: 60px; animation: fadeIn 0.4s ease-out; -webkit-tap-highlight-color: transparent;}
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        button:active, .tab:active, .btn:active, .stat-box:active, .bottom-nav a:active { transform: scale(0.92); transition: transform 0.1s; }
-        
-        .header { background: #111; padding: 30px 20px 10px; position: relative; }
+        body { font-family: sans-serif; background: #111; color: #fff; margin: 0; text-align: center; padding-bottom: 60px; }
+        .header { background: #222; padding: 30px 20px 10px; position: relative; }
         .settings-btn { position: absolute; top: 20px; left: 20px; color: white; font-size: 22px; text-decoration: none; }
-        .avatar-container { width: 100px; height: 100px; background: #333; border-radius: 50%; margin: 0 auto 15px; display: flex; justify-content: center; align-items: center; font-size: 50px; border: 3px solid #fe2c55; overflow: hidden; box-shadow: 0 4px 15px rgba(254,44,85,0.2);}
+        .avatar-container { width: 100px; height: 100px; background: #333; border-radius: 50%; margin: 0 auto 15px; display: flex; justify-content: center; align-items: center; font-size: 50px; border: 3px solid #fe2c55; overflow: hidden; }
         .avatar-container img { width: 100%; height: 100%; object-fit: cover; }
-        .username-title { font-size: 20px; font-weight: bold; margin-bottom: 5px; display: flex; justify-content: center; align-items: center; gap: 5px;}
-        .bio-text { font-size: 14px; color: #ccc; margin-bottom: 15px; padding: 0 20px; line-height: 1.4;}
-        
-        .stats { display: flex; justify-content: center; gap: 25px; margin-top: 15px; margin-bottom: 15px;}
-        .stat-box { text-decoration: none; color: white; cursor: pointer; transition: 0.2s;}
-        .stat-box h3 { margin: 0; font-size: 18px; font-weight: bold;}
-        .stat-box p { margin: 5px 0 0; font-size: 13px; color: #aaa; }
-        
-        .btn { color: white; text-decoration: none; padding: 8px 20px; border-radius: 5px; display: inline-block; margin-top: 10px; font-weight: bold; margin-left: 5px; margin-right: 5px; border: none; cursor: pointer; font-size: 14px;}
-        
+        .username-title { font-size: 20px; font-weight: bold; margin-bottom: 5px; }
+        .bio-text { font-size: 14px; color: #ccc; margin-bottom: 15px; }
+        .stats { display: flex; justify-content: center; gap: 25px; margin-top: 15px; }
+        .stat-box h3 { margin: 0; font-size: 18px; color: #fe2c55; }
+        .stat-box p { margin: 5px 0 0; font-size: 12px; color: #aaa; }
+        .btn { color: white; text-decoration: none; padding: 8px 20px; border-radius: 5px; display: inline-block; margin-top: 10px; font-weight: bold; border: none; cursor: pointer; font-size: 14px;}
+        .btn-unfollow { background: #dc3545; }
+        .btn-follow { background: #28a745; }
+        .btn-msg { background: #333; }
         .tabs { display: flex; border-bottom: 1px solid #222; margin-top: 20px; }
-        .tab { flex: 1; padding: 15px; cursor: pointer; color: #888; font-size: 14px; font-weight: bold; border-bottom: 2px solid transparent; transition: 0.2s;}
+        .tab { flex: 1; padding: 15px; cursor: pointer; color: #888; font-weight: bold; }
         .tab.active { color: #fff; border-bottom: 2px solid #fe2c55; }
-        
-        /* --- هيكل التحميل (Skeleton) --- */
-        .skeleton-box { background: #222; aspect-ratio: 9/16; position: relative; overflow: hidden; }
-        .skeleton-shimmer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(90deg, #222 25%, #333 50%, #222 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
-        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-
         .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 2px; display: none;}
         .grid.active { display: grid; }
-        .vid-box { background: #222; aspect-ratio: 9/16; position: relative; overflow: hidden; cursor: pointer; animation: fadeIn 0.5s ease;}
-        .vid-box img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.3s;}
-        .vid-box:hover img { transform: scale(1.05); }
-        .views-overlay { position: absolute; bottom: 5px; left: 5px; font-size: 12px; font-weight: bold; text-shadow: 1px 1px 3px black; display: flex; align-items: center; gap: 4px;}
-        .delete-btn-overlay { position: absolute; top: 5px; right: 5px; background: rgba(220, 53, 69, 0.8); color: white; padding: 5px 8px; border-radius: 5px; text-decoration: none; font-size: 14px; z-index: 10;}
-        
-        .empty-msg { text-align: center; color: #888; padding: 30px; font-size: 14px; display: none; }
-        
-        .bottom-nav { position: fixed; bottom: 0; width: 100%; height: 60px; background: #000; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #222; z-index: 9999; padding-bottom: env(safe-area-inset-bottom); }
-        .bottom-nav a { color: #888; text-decoration: none; font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 3px; transition: all 0.2s;}
+        .vid-box { background: #222; aspect-ratio: 9/16; position: relative; overflow: hidden; cursor: pointer;}
+        .vid-box img { width: 100%; height: 100%; object-fit: cover; }
+        .views-overlay { position: absolute; bottom: 5px; left: 5px; font-size: 12px; font-weight: bold; }
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; height: 60px; background: #000; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #222; z-index: 100; }
+        .bottom-nav a { color: #888; text-decoration: none; font-size: 12px; display: flex; flex-direction: column; align-items: center; }
         .bottom-nav a.active { color: #fff; }
-        .bottom-nav a.active i { animation: navBounce 0.4s ease; }
-        @keyframes navBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
         .bottom-nav a i { font-size: 20px; }
-
-        .edit-modal-backdrop { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; backdrop-filter: blur(3px); opacity: 0; transition: opacity 0.3s;}
-        .edit-modal-backdrop.active { display: block; opacity: 1; }
-        .edit-modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9); background: #1a1a1a; width: 90%; max-width: 400px; border-radius: 15px; padding: 20px; z-index: 1001; flex-direction: column; gap: 15px; text-align: right; transition: transform 0.3s; opacity: 0;}
-        .edit-modal.active { display: flex; transform: translate(-50%, -50%) scale(1); opacity: 1;}
-        
-        .edit-modal h3 { margin: 0 0 10px; text-align: center; }
-        .edit-modal input[type="text"], .edit-modal textarea { width: 100%; padding: 10px; background: #333; border: none; border-radius: 8px; color: white; box-sizing: border-box; margin-bottom: 10px; font-family: inherit;}
-        .edit-modal textarea { resize: none; height: 80px; }
-        .edit-modal label { font-size: 13px; color: #aaa; margin-bottom: 5px; display: block; }
-        .edit-modal-actions { display: flex; gap: 10px; }
-        .edit-modal-actions button { flex: 1; padding: 10px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; }
-        .btn-save { background: #fe2c55; color: white; }
-        .btn-cancel { background: #444; color: white; }
-        input[type="file"] { display: none; }
-        .pic-preview { width: 70px; height: 70px; border-radius: 50%; object-fit: cover; margin: 0 auto; display: block; background: #333; }
+        /* نافذة عرض الفيديو */
+        #instaVideoModal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:99999; justify-content:center; align-items:center; flex-direction:column; }
+        #instaVideoModal button { position:absolute; top:20px; right:20px; background:none; border:none; color:white; font-size:35px; cursor:pointer; z-index:100000; }
+        #instaVideoPlayer { width:100%; max-height:90vh; object-fit:contain; }
     </style>
 </head>
 <body>
-    <!-- نافذة التعديل (مثل السابق) -->
-    <div class="edit-modal-backdrop" id="editModalBackdrop" onclick="closeEditModal()"></div>
-    <div class="edit-modal" id="editModal">
-        <h3>تعديل الملف الشخصي</h3>
-        <form method="POST" enctype="multipart/form-data">
-            <div style="text-align: center; margin-bottom: 15px;">
-                <button type="button" onclick="document.getElementById('picInput').click()" class="edit-avatar-btn" style="border:none; cursor:pointer;"><i class="fa-solid fa-camera"></i> تغيير الصورة</button>
-                <input type="file" name="profile_pic" id="picInput" accept="image/*">
-            </div>
-            <label>الاسم (لا يمكن تغييره)</label>
-            <input type="text" value="{{ user.username }}" disabled style="color: #888;">
-            <label>السيرة الذاتية (Bio)</label>
-            <textarea name="bio" placeholder="اكتب شيئاً عن نفسك...">{{ user.bio }}</textarea>
-            <div class="edit-modal-actions">
-                <button type="button" class="btn-cancel" onclick="closeEditModal()">إلغاء</button>
-                <button type="submit" class="btn-save">حفظ</button>
-            </div>
-        </form>
+    <!-- نافذة الفيديو -->
+    <div id="instaVideoModal">
+        <button onclick="closeVideoModal()"><i class="fa-solid fa-xmark"></i></button>
+        <video id="instaVideoPlayer" controls autoplay loop playsinline></video>
     </div>
 
     <div class="header">
-        {% if current_user.is_authenticated and current_user.id == user.id %}<a href="/settings" class="settings-btn"><i class="fa-solid fa-gear"></i></a>{% endif %}
+        {% if current_user.is_authenticated and current_user.id == user.id %}
+            <a href="/settings" class="settings-btn"><i class="fa-solid fa-gear"></i></a>
+        {% endif %}
         <div class="avatar-container">
             {% if user.profile_pic %}<img src="{{ user.profile_pic }}">{% else %}👤{% endif %}
         </div>
-        <div class="username-title">@{{ user.username }} {% if user.username == 'kanaw' or user.followers.count() >= 100000 %}<i class="fa-solid fa-circle-check" style="color: #1DA1F2; font-size: 16px;"></i>{% endif %} {% if user.is_private %} <i class="fa-solid fa-lock" style="font-size: 16px; color: #aaa;"></i> {% endif %}</div>
+        <div class="username-title">@{{ user.username }}</div>
         <div class="bio-text">{{ user.bio }}</div>
-        {% if current_user.is_authenticated and current_user.id == user.id %}
-            <button onclick="openBioModal()" style="background:none; border:1px solid #555; color:#aaa; padding:5px 10px; border-radius:5px; font-size:12px; cursor:pointer; margin-bottom:10px;">تعديل السيرة الذاتية</button>
-        {% endif %}
-        {% if user.bio_link %}
-            <div style="margin-bottom:15px;"><a href="{{ user.bio_link }}" target="_blank" style="color:#00f2ea; text-decoration:none;"><i class="fa-solid fa-link"></i> {{ user.bio_link }}</a></div>
-        {% endif %}
-
         <div class="stats">
-            <a href="/profile/{{ user.username }}/following" class="stat-box"><h3>{{ following_count }}</h3><p>يتابع</p></a>
-            <a href="/profile/{{ user.username }}/followers" class="stat-box"><h3>{{ followers_count }}</h3><p>متابع</p></a>
-            <div class="stat-box"><h3>{{ total_likes }}</h3><p>إعجاب</p></div>
+            <div class="stat-box"><h3>{{ videos|length }}</h3><p>فيديو</p></div>
+            <div class="stat-box"><h3>{{ followers_count }}</h3><p>متابع</p></div>
+            <div class="stat-box"><h3>{{ following_count }}</h3><p>يتابع</p></div>
         </div>
-
-        <div style="margin-top: 5px;">
-            {% if current_user.is_authenticated and current_user.id == user.id %}
-                <button onclick="openEditModal()" class="btn" style="background:#333;"><i class="fa-solid fa-pen"></i> تعديل</button>
-                <button onclick="shareProfile('{{ user.username }}')" class="btn" style="background:#333;"><i class="fa-solid fa-share"></i> مشاركة</button>
-                <button onclick="showQR()" class="btn" style="background:#333;"><i class="fa-solid fa-qrcode"></i> QR</button>
-            {% elif current_user.is_authenticated and current_user.id != user.id %}
-                <a href="javascript:void(0)" onclick="if(!isAuthenticated) { window.location.href=\'/register\'; } else { window.location.href=\'/toggle_follow/{{ user.id }}\'; }" class="btn" style="background:{% if is_following %}#333{% elif has_requested %}#ff9800{% else %}#fe2c55{% endif %};">
-                    {% if is_following %} متابَع {% elif has_requested %} معلق {% else %} متابعة {% endif %}
-                </a>
-                <a href="javascript:void(0)" onclick="if(!isAuthenticated) { window.location.href=\'/register\'; } else { window.location.href=\'/chat/{{ user.username }}\'; }" class="btn" style="background:#333;"><i class="fa-solid fa-envelope"></i></a>
-                <a href="javascript:void(0)" onclick="if(!isAuthenticated) { window.location.href=\'/register\'; } else { window.location.href=\'/block/{{ user.id }}\'; }" class="btn" style="background:{% if is_blocked %}#28a745{% else %}#dc3545{% endif %};" onclick="return confirm('{% if is_blocked %}إلغاء الحظر؟{% else %}حظر هذا الشخص؟{% endif %}')">
-                    <i class="fa-solid fa-ban"></i>
-                </a>
+        
+        <div style="margin-top: 15px;">
+            {% if current_user.is_authenticated and current_user.id != user.id %}
+                {% if is_following %}
+                    <a href="/toggle_follow/{{ user.id }}" class="btn btn-unfollow"><i class="fa-solid fa-user-minus"></i> إلغاء المتابعة</a>
+                {% elif has_requested %}
+                    <a href="/toggle_follow/{{ user.id }}" class="btn" style="background:#ff9800;">⏳ طلب معلق</a>
+                {% else %}
+                    <a href="/toggle_follow/{{ user.id }}" class="btn btn-follow"><i class="fa-solid fa-user-plus"></i> متابعة</a>
+                {% endif %}
+                <a href="/chat/{{ user.username }}" class="btn btn-msg"><i class="fa-solid fa-envelope"></i> رسالة</a>
             {% endif %}
         </div>
 
         <div class="tabs">
             <div class="tab active" onclick="switchTab('videos')">الفيديوهات</div>
             {% if can_view %}<div class="tab" onclick="switchTab('liked')">معجب بها</div>{% endif %}
-            {% if current_user.is_authenticated and current_user.id == user.id %}<div class="tab" onclick="switchTab('saved')">المفضلة</div>{% endif %}
         </div>
     </div>
 
-    {% if is_blocked %}
-        <div class="empty-msg" style="display:block;"><h2>لقد قمت بحظر هذا المستخدم.</h2></div>
-    {% elif not can_view %}
-        <div class="empty-msg" style="display:block;"><h2>🔒 هذا الحساب خاص</h2></div>
-    {% else %}
-        <!-- هيكل التحميل (Skeleton) يظهر قبل تحميل الصور -->
-        <div class="grid active" id="skeleton-grid">
-            <div class="skeleton-box"><div class="skeleton-shimmer"></div></div>
-            <div class="skeleton-box"><div class="skeleton-shimmer"></div></div>
-            <div class="skeleton-box"><div class="skeleton-shimmer"></div></div>
-            <div class="skeleton-box"><div class="skeleton-shimmer"></div></div>
-            <div class="skeleton-box"><div class="skeleton-shimmer"></div></div>
-            <div class="skeleton-box"><div class="skeleton-shimmer"></div></div>
-        </div>
-
-        <!-- شبكات الفيديوهات الحقيقية (مخفية حتى يتم التحميل) -->
-        <div class="grid" id="grid-videos" style="display:none;">
+    {% if can_view %}
+        <div class="grid active" id="grid-videos">
             {% for video in videos %}
+            <!-- فتح الفيديو في نافذة مثل إنستغرام -->
             <div class="vid-box" onclick="openVideoModal('{{ video.filename }}')">
                 <img src="{{ video.filename|replace('.mp4', '.jpg') }}" onerror="this.src='https://via.placeholder.com/150/333/fff?text=Video'">
                 <div class="views-overlay"><i class="fa-solid fa-play"></i> {{ video.views }}</div>
-                {% if current_user.is_authenticated and current_user.id == user.id %}
-                    <a href="/delete_video/{{ video.id }}" class="delete-btn-overlay" onclick="event.stopPropagation(); return confirm('حذف الفيديو؟')"><i class="fa-solid fa-trash"></i></a>
-                {% endif %}
             </div>
             {% endfor %}
         </div>
@@ -162,144 +92,34 @@
             {% for video in liked_vids %}
             <div class="vid-box" onclick="openVideoModal('{{ video.filename }}')">
                 <img src="{{ video.filename|replace('.mp4', '.jpg') }}" onerror="this.src='https://via.placeholder.com/150/333/fff?text=Video'">
-                <div class="views-overlay"><i class="fa-solid fa-play"></i> {{ video.views }}</div>
             </div>
             {% endfor %}
         </div>
-        <div class="grid" id="grid-saved">
-            {% for video in saved_vids %}
-            <div class="vid-box" onclick="openVideoModal('{{ video.filename }}')">
-                <img src="{{ video.filename|replace('.mp4', '.jpg') }}" onerror="this.src='https://via.placeholder.com/150/333/fff?text=Video'">
-                <div class="views-overlay"><i class="fa-solid fa-play"></i> {{ video.views }}</div>
-            </div>
-            {% endfor %}
-        </div>
+    {% else %}
+        <div style="padding: 50px; color: #888;"><h2>🔒 هذا الحساب خاص</h2></div>
     {% endif %}
 
     <div class="bottom-nav">
         <a href="/"><i class="fa-solid fa-house"></i> الرئيسية</a>
-        <a href="/search"><i class="fa-solid fa-magnifying-glass"></i> بحث</a>
-        <a href="{% if current_user.is_authenticated %}/upload{% else %}/login{% endif %}"><i class="fa-solid fa-circle-plus" style="font-size: 24px;"></i></a>
-        <a href="{% if current_user.is_authenticated %}/inbox{% else %}/login{% endif %}"><i class="fa-solid fa-envelope"></i> الرسائل</a>
-        <a href="{% if current_user.is_authenticated %}/profile/{{ current_user.username }}{% else %}/login{% endif %}" class="active"><i class="fa-solid fa-user"></i> حسابي</a>
+        <a href="/trending"><i class="fa-solid fa-fire"></i> الترند</a>
+        <a href="/inbox"><i class="fa-solid fa-envelope"></i> الرسائل</a>
+        <a href="/profile/{{ current_user.username if current_user.is_authenticated else '' }}" class="active"><i class="fa-solid fa-user"></i> حسابي</a>
     </div>
 
     <script>
-        const isAuthenticated = {{ 'true' if current_user.is_authenticated else 'false' }};
-        // إخفاء الـ Skeleton وإظهار الشبكة الحقيقية بعد تحميل الصفحة
-        window.addEventListener('load', function() {
-            const skeleton = document.getElementById('skeleton-grid');
-            if (skeleton) {
-                skeleton.style.display = 'none';
-                document.getElementById('grid-videos').style.display = 'grid';
-            }
-        });
-
         function switchTab(tabName) {
             document.querySelectorAll('.grid').forEach(g => g.classList.remove('active'));
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.getElementById('grid-' + tabName).classList.add('active');
-            document.getElementById('grid-' + tabName).style.display = 'grid';
             event.currentTarget.classList.add('active');
         }
-        function openEditModal() {
-            document.getElementById('editModalBackdrop').classList.add('active');
-            document.getElementById('editModal').classList.add('active');
-        }
-        function closeEditModal() {
-            document.getElementById('editModalBackdrop').classList.remove('active');
-            document.getElementById('editModal').classList.remove('active');
-        }
-        document.getElementById('picInput').addEventListener('change', function(event) {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const preview = document.getElementById('picPreview');
-                    const previewDiv = document.getElementById('picPreviewDiv');
-                    if (preview) preview.src = e.target.result;
-                    else if (previewDiv) previewDiv.outerHTML = `<img src="${e.target.result}" class="pic-preview" id="picPreview">`;
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-        function shareProfile(username) {
-            const url = window.location.origin + '/profile/' + username;
-            if (navigator.share) navigator.share({ title: 'Kanaw', url: url }).catch(err => console.log(err));
-            else { navigator.clipboard.writeText(url).then(() => alert('تم نسخ رابط الحساب!')).catch(() => prompt('انسخ الرابط:', url)); }
-        }
-    </script>
-
-    <div class="edit-modal-backdrop" id="qrBackdrop" onclick="closeQR()"></div>
-    <div class="edit-modal" id="qrModal" style="text-align:center;">
-        <h3>رمز QR لملفك الشخصي</h3>
-        <img id="qrImage" src="" style="width:200px; height:200px; margin:0 auto; background:white; padding:10px; border-radius:10px;">
-        <p style="color:#888; margin-top:10px;">امسح الرمز لمتابعة @{{ user.username }}</p>
-        <button onclick="closeQR()" class="btn btn-cancel" style="width:100%;">إغلاق</button>
-    </div>
-    
-    <div class="edit-modal-backdrop" id="editBioBackdrop" onclick="closeBioModal()"></div>
-    <div class="edit-modal" id="editBioModal">
-        <h3>تعديل السيرة الذاتية</h3>
-        <textarea id="bioText" style="width:100%; height:80px; background:#333; color:white; border:none; border-radius:8px; padding:10px; margin-bottom:10px;">{{ user.bio }}</textarea>
-        <input type="url" id="bioLink" placeholder="رابط (مثال: https://google.com)" value="{{ user.bio_link or '' }}" style="width:100%; background:#333; color:white; border:none; border-radius:8px; padding:10px; margin-bottom:10px;">
-        <div class="edit-modal-actions">
-            <button type="button" class="btn-cancel" onclick="closeBioModal()">إلغاء</button>
-            <button type="button" class="btn-save" onclick="saveBio()">حفظ</button>
-        </div>
-    </div>
-    
-
-    <script>
-        const isAuthenticated = {{ 'true' if current_user.is_authenticated else 'false' }};
-        function showQR() {
-            document.getElementById('qrBackdrop').classList.add('active');
-            document.getElementById('qrModal').classList.add('active');
-            document.getElementById('qrImage').src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + window.location.href;
-        }
-        function closeQR() {
-            document.getElementById('qrBackdrop').classList.remove('active');
-            document.getElementById('qrModal').classList.remove('active');
-        }
-        
-        function openBioModal() {
-            document.getElementById('editBioBackdrop').classList.add('active');
-            document.getElementById('editBioModal').classList.add('active');
-        }
-        function closeBioModal() {
-            document.getElementById('editBioBackdrop').classList.remove('active');
-            document.getElementById('editBioModal').classList.remove('active');
-        }
-        function saveBio() {
-            const bio = document.getElementById('bioText').value;
-            const link = document.getElementById('bioLink').value;
-            fetch('/api/update_bio', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({bio: bio, bio_link: link})
-            }).then(res => res.json()).then(data => {
-                if(data.success) window.location.reload();
-            });
-        }
-    </script>
-    
-
-    <!-- نافذة عرض الفيديو (مثل إنستغرام) -->
-    <div id="instaVideoModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:99999; justify-content:center; align-items:center; flex-direction:column;">
-        <button onclick="closeVideoModal()" style="position:absolute; top:20px; right:20px; background:none; border:none; color:white; font-size:35px; cursor:pointer; z-index:100000;"><i class="fa-solid fa-xmark"></i></button>
-        <video id="instaVideoPlayer" src="" controls autoplay loop playsinline style="width:100%; max-height:90vh; object-fit:contain;"></video>
-    </div>
-    
-    <script>
-        const isAuthenticated = {{ 'true' if current_user.is_authenticated else 'false' }};
-        function openVideoModal(videoUrl) {
+        function openVideoModal(url) {
             const modal = document.getElementById('instaVideoModal');
             const player = document.getElementById('instaVideoPlayer');
-            player.src = videoUrl;
+            player.src = url;
             modal.style.display = 'flex';
             player.play().catch(e => console.log('Autoplay blocked'));
         }
-        
         function closeVideoModal() {
             const modal = document.getElementById('instaVideoModal');
             const player = document.getElementById('instaVideoPlayer');
@@ -308,6 +128,5 @@
             modal.style.display = 'none';
         }
     </script>
-    
 </body>
 </html>

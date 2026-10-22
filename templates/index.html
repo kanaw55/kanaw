@@ -109,7 +109,7 @@
         {% for video in videos %}
         <div class="video-container" data-video-id="{{ video.id }}">
             <div class="video-spinner" id="spinner-{{ video.id }}"></div>
-            <video src="{{ video.filename }}" loop playsinline webkit-playsinline muted preload="auto" onclick="handleVideoClick(this, {{ video.id }})" onwaiting="document.getElementById('spinner-{{ video.id }}').style.display='block'" onplaying="document.getElementById('spinner-{{ video.id }}').style.display='none'"></video>
+            <video src="{{ video.filename }}" loop playsinline webkit-playsinline muted preload="{% if loop.index <= 3 %}auto{% else %}metadata{% endif %}" onclick="handleVideoClick(this, {{ video.id }})" onwaiting="document.getElementById('spinner-{{ video.id }}').style.display='block'" onplaying="document.getElementById('spinner-{{ video.id }}').style.display='none'"></video>
             <i class="fa-solid fa-heart heart-pop" id="heart-{{ video.id }}"></i>
             
             <button class="mute-btn" onclick="toggleSound()" style="position: absolute; top: 70px; left: 15px; background: rgba(0,0,0,0.8); color: white; border: 2px solid white; width: 45px; height: 45px; border-radius: 50%; font-size: 20px; z-index: 20;"><i class="fa-solid fa-volume-xmark"></i></button>
@@ -329,5 +329,112 @@
         }
         
     </script>
+
+    <script>
+        // ==================== نظام التحميل المسبق الذكي (مثل تيك توك) ====================
+        let isLoadingMore = false;
+        let noMoreVideos = false;
+
+        // مراقبة الفيديو الذي يظهر على الشاشة
+        function setupVideoObserver() {
+            const videos = document.querySelectorAll('.video-container video');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    const video = entry.target;
+                    const container = video.parentElement;
+                    const videoId = container.getAttribute('data-video-id');
+                    
+                    if (entry.isIntersecting) {
+                        // تشغيل الفيديو الحالي
+                        video.muted = false;
+                        video.play().catch(e => {
+                            video.muted = true;
+                            video.play().catch(() => {});
+                        });
+                        
+                        // تسجيل المشاهدة
+                        if (!viewedVideos.includes(videoId)) {
+                            fetch(`/api/view/${videoId}`, {method: 'POST'}).catch(()=>{});
+                            viewedVideos.push(videoId);
+                            localStorage.setItem('viewed_videos', JSON.stringify(viewedVideos));
+                        }
+                        
+                        // 🔥 التحميل المسبق للفيديو التالي
+                        const allContainers = document.querySelectorAll('.video-container');
+                        const currentIndex = Array.from(allContainers).indexOf(container);
+                        
+                        // تحميل الفيديوهين التاليين مسبقاً
+                        for (let i = 1; i <= 2; i++) {
+                            const nextContainer = allContainers[currentIndex + i];
+                            if (nextContainer) {
+                                const nextVideo = nextContainer.querySelector('video');
+                                if (nextVideo && nextVideo.preload !== 'auto') {
+                                    nextVideo.preload = 'auto';
+                                    nextVideo.load(); // إجبار المتصفح على بدء التحميل
+                                }
+                            }
+                        }
+                        
+                        // التمرير اللانهائي عند الوصول للفيديو رقم 25
+                        if (currentIndex >= allContainers.length - 5 && !isLoadingMore && !noMoreVideos) {
+                            loadMoreVideos();
+                        }
+                        
+                    } else {
+                        // إيقاف الفيديوهات التي خرجت من الشاشة
+                        video.pause();
+                        video.currentTime = 0;
+                    }
+                });
+            }, { threshold: 0.6 });
+            
+            videos.forEach(video => observer.observe(video));
+        }
+
+        // تحميل المزيد من الفيديوهات
+        async function loadMoreVideos() {
+            if (isLoadingMore || noMoreVideos) return;
+            isLoadingMore = true;
+            
+            try {
+                const res = await fetch('/api/load_more');
+                const html = await res.text();
+                
+                if (html.trim() === "") {
+                    noMoreVideos = true;
+                    isLoadingMore = false;
+                    return;
+                }
+                
+                const feed = document.getElementById('videoFeed');
+                feed.insertAdjacentHTML('beforeend', html);
+                
+                // إعادة تهيئة المراقب للفيديوهات الجديدة
+                setTimeout(() => {
+                    setupVideoObserver();
+                    isLoadingMore = false;
+                }, 500);
+                
+            } catch (e) {
+                console.error('خطأ في تحميل المزيد:', e);
+                isLoadingMore = false;
+            }
+        }
+
+        // تشغيل النظام عند تحميل الصفحة
+        document.addEventListener('DOMContentLoaded', function() {
+            setupVideoObserver();
+            
+            // تحميل مسبق لأول 3 فيديوهات
+            setTimeout(() => {
+                const firstVideos = document.querySelectorAll('.video-container video');
+                for (let i = 0; i < Math.min(3, firstVideos.length); i++) {
+                    firstVideos[i].preload = 'auto';
+                    firstVideos[i].load();
+                }
+            }, 100);
+        });
+    </script>
+
 </body>
 </html>
