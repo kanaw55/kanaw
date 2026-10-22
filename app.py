@@ -180,6 +180,11 @@ class Report(db.Model):
 @login_manager.user_loader
 def load_user(user_id): return User.query.get(int(user_id))
 
+
+@app.context_processor
+def inject_now():
+    return {'now': datetime.utcnow()}
+
 @app.context_processor
 def inject_notifications():
     if current_user.is_authenticated:
