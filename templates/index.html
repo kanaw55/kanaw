@@ -208,16 +208,6 @@
         }
 
         // 5. دالة الحفظ
-        async function saveVideo(videoId, element) {
-            const res = await fetch(`/api/save/${videoId}`, { method: 'POST' });
-            if (res.ok) {
-                const data = await res.json();
-                if (data.success) {
-                    const icon = document.querySelector(`.save-icon-${videoId}`);
-                    icon.style.color = data.is_saved ? '#f5c518' : '#fff';
-                }
-            }
-        }
 
         // 6. فتح التعليقات
         function openComments(videoId) {
@@ -309,26 +299,6 @@
             });
         }
         function closeShareModal() { document.getElementById('shareBackdrop').classList.remove('active'); document.getElementById('shareModal').classList.remove('active'); }
-        function sendVideoTo(userId) {
-            fetch(`/api/share_video/${shareVideoId}`, { 
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify({receiver_id: userId}) 
-            })
-            .then(res => {
-                if(res.status === 401) { window.location.href = '/login'; return; }
-                return res.json();
-            })
-            .then(data => { 
-                if(data && data.success) { 
-                    alert('تم إرسال الفيديو!'); 
-                    closeShareModal(); 
-                } else if(data) {
-                    alert('فشل المشاركة: ' + (data.error || 'خطأ غير معروف'));
-                }
-            })
-            .catch(() => alert('خطأ في الاتصال بالشبكة.'));
-        }
         let shareVideoId = null;
         
     
@@ -498,7 +468,46 @@
             });
         };
     })();
-    </script>
+    
+    async function saveVideo(videoId) {
+    try {
+        const res = await fetch(`/api/save/${videoId}`, { method: 'POST' });
+        if (res.status === 401) { window.location.href = '/login'; return; }
+        const data = await res.json();
+        if (data.success) {
+            const btn = document.querySelector(`[onclick*="saveVideo(${videoId})"]`);
+            if (btn) {
+                btn.style.color = data.is_saved ? '#fe2c55' : 'white';
+                btn.innerHTML = data.is_saved ? '<i class="fa-solid fa-bookmark"></i>' : '<i class="fa-regular fa-bookmark"></i>';
+            }
+        } else {
+            alert('فشل الحفظ: ' + (data.error || 'خطأ غير معروف'));
+        }
+    } catch (e) {
+        alert('خطأ في الاتصال بالشبكة.');
+    }
+}
+
+    async function sendVideoTo(userId) {
+    try {
+        const res = await fetch(`/api/share_video/${shareVideoId}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({receiver_id: userId})
+        });
+        if (res.status === 401) { window.location.href = '/login'; return; }
+        const data = await res.json();
+        if (data.success) {
+            alert('✅ تم إرسال الفيديو!');
+            closeShareModal();
+        } else {
+            alert('فشل المشاركة: ' + (data.error || 'خطأ غير معروف'));
+        }
+    } catch (e) {
+        alert('خطأ في الاتصال بالشبكة.');
+    }
+}
+</script>
 
 </body>
 </html>
