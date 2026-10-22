@@ -113,6 +113,7 @@ class ChatGroup(db.Model):
     restrict_edit_info = db.Column(db.Boolean, default=False)
     restrict_send_messages = db.Column(db.Boolean, default=False)
     restrict_add_members = db.Column(db.Boolean, default=False)
+    chat_bg = db.Column(db.String(500), default=None)
 
 class Message(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -125,6 +126,7 @@ class Message(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     sender = db.relationship('User', foreign_keys=[sender_id], backref='sent_messages')
     receiver = db.relationship('User', foreign_keys=[receiver_id], backref='received_messages')
+    reply_to = db.relationship('Message', remote_side=[id], backref='message_replies')
 
 class Notification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -132,6 +134,7 @@ class Notification(db.Model):
     sender_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     type = db.Column(db.String(20))
     is_read = db.Column(db.Boolean, default=False)
+    reply_to_id = db.Column(db.Integer, db.ForeignKey('message.id'), nullable=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     sender = db.relationship('User', foreign_keys=[sender_id])
 
@@ -323,6 +326,16 @@ def group_stories(group_id):
     ).order_by(Story.created_at.desc()).all()
     return jsonify([{'id': s.id, 'url': s.media_url, 'user': s.user.username, 'pic': s.user.profile_pic} for s in stories])
 
+@app.route('/group/<int:group_id>/update_bg', methods=['POST'])
+@login_required
+def update_chat_bg(group_id):
+    group = ChatGroup.query.get_or_404(group_id)
+    if current_user not in group.admins: return "غير مصرح", 403
+    bg_url = request.form.get('chat_bg', '').strip()
+    group.chat_bg = bg_url if bg_url else None
+    db.session.commit()
+    return redirect(url_for('chat_group', group_id=group_id))
+
 @app.route('/group_info/<int:group_id>')
 @login_required
 def group_info(group_id):
@@ -463,7 +476,9 @@ def chat_group(group_id):
             
         content = request.form.get('content')
         if content:
-            db.session.add(Message(sender_id=current_user.id, content=content, group_id=group.id))
+            reply_to_id = request.form.get('reply_to_id')
+            reply_to_id = int(reply_to_id) if reply_to_id else None
+            db.session.add(Message(sender_id=current_user.id, content=content, group_id=group.id, reply_to_id=reply_to_id))
             db.session.commit()
             return redirect(url_for('chat_group', group_id=group.id))
             
@@ -789,11 +804,14 @@ def chat(username):
     if request.method == 'POST':
         content = request.form.get('content')
         if content:
-            db.session.add(Message(sender_id=current_user.id, receiver_id=other_user.id, content=content))
+            reply_to_id = request.form.get('reply_to_id')
+            reply_to_id = int(reply_to_id) if reply_to_id else None
+            db.session.add(Message(sender_id=current_user.id, receiver_id=other_user.id, content=content, reply_to_id=reply_to_id))
             db.session.add(Notification(user_id=other_user.id, sender_id=current_user.id, type='message'))
             db.session.commit(); return redirect(url_for('chat', username=username))
     messages = Message.query.filter(((Message.sender_id == current_user.id) & (Message.receiver_id == other_user.id)) | ((Message.sender_id == other_user.id) & (Message.receiver_id == current_user.id))).order_by(Message.timestamp.asc()).all()
-    return render_template('chat.html', other_user=other_user, group=None, messages=messages)
+    message_count = Message.query.filter(((Message.sender_id == current_user.id) & (Message.receiver_id == other_user.id)) | ((Message.sender_id == other_user.id) & (Message.receiver_id == current_user.id))).count()
+    return render_template('chat.html', other_user=other_user, group=None, messages=messages, message_count=message_count)
 
 @app.route('/notifications')
 @login_required
