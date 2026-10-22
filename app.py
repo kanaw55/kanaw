@@ -135,7 +135,6 @@ class Notification(db.Model):
     sender_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     type = db.Column(db.String(20))
     is_read = db.Column(db.Boolean, default=False)
-    reply_to_id = db.Column(db.Integer, db.ForeignKey('message.id'), nullable=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     sender = db.relationship('User', foreign_keys=[sender_id])
 
