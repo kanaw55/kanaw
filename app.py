@@ -57,7 +57,11 @@ likes = db.Table('likes', db.Column('user_id', db.Integer, db.ForeignKey('user.i
 saves = db.Table('saves', db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True), db.Column('video_id', db.Integer, db.ForeignKey('video.id'), primary_key=True))
 blocks = db.Table('blocks', db.Column('blocker_id', db.Integer, db.ForeignKey('user.id'), primary_key=True), db.Column('blocked_id', db.Integer, db.ForeignKey('user.id'), primary_key=True))
 comment_likes = db.Table('comment_likes', db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True), db.Column('comment_id', db.Integer, db.ForeignKey('comment.id'), primary_key=True))
-group_member = db.Table('group_member', db.Column('group_id', db.Integer, db.ForeignKey('chat_group.id'), primary_key=True), db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True))
+group_member = db.Table('group_member',
+    db.Column('group_id', db.Integer, db.ForeignKey('chat_group.id'), primary_key=True),
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
+    db.Column('joined_at', db.DateTime, default=datetime.utcnow)
+)
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -615,7 +619,52 @@ def chat_group(group_id):
             db.session.commit()
             return redirect(url_for('chat_group', group_id=group.id))
             
-    messages = Message.query.filter_by(group_id=group.id).order_by(Message.timestamp.asc()).all()
+    # جلب وقت انضمام العضو الحالي للمجموعة
+    joined_at_row = db.session.execute(
+        db.select(group_member.c.joined_at).where(
+            (group_member.c.group_id == group.id) & 
+            (group_member.c.user_id == current_user.id)
+        )
+    ).first()
+    joined_at = joined_at_row[0] if joined_at_row else None
+    
+    # المالك يرى كل شي، العضو الجديد يرى من وقت انضمامه فقط
+    if joined_at and current_user.id != group.creator_id:
+        messages = Message.query.filter(
+            Message.group_id == group.id,
+            Message.timestamp >= joined_at
+        ).order_by(Message.timestamp.desc()).limit(50).all()
+    else:
+        joined_row = db.session.execute(
+        db.select(group_member.c.joined_at).where(
+            (group_member.c.group_id == group.id) &
+            (group_member.c.user_id == current_user.id)
+        )
+    ).first()
+    joined_at = joined_row[0] if joined_row else None
+
+    if joined_at and current_user.id != group.creator_id:
+        messages = Message.query.filter(
+            Message.group_id == group.id,
+            Message.timestamp >= joined_at
+        ).order_by(Message.timestamp.desc()).limit(50).all()
+    else:
+        joined_row = db.session.execute(
+        db.select(group_member.c.joined_at).where(
+            (group_member.c.group_id == group.id) &
+            (group_member.c.user_id == current_user.id)
+        )
+    ).first()
+    joined_at = joined_row[0] if joined_row else None
+
+    if joined_at and current_user.id != group.creator_id:
+        messages = Message.query.filter(
+            Message.group_id == group.id,
+            Message.timestamp >= joined_at
+        ).order_by(Message.timestamp.desc()).limit(50).all()
+    else:
+        messages = Message.query.filter_by(group_id=group.id).order_by(Message.timestamp.desc()).limit(50).all()
+    messages.reverse()
     return render_template('chat.html', other_user=None, group=group, messages=messages, is_admin=is_admin)
 
 @app.route('/api/add_story', methods=['POST'])
@@ -958,7 +1007,8 @@ def chat(username):
             db.session.add(Message(sender_id=current_user.id, receiver_id=other_user.id, content=content, reply_to_id=reply_to_id))
             db.session.add(Notification(user_id=other_user.id, sender_id=current_user.id, type='message'))
             db.session.commit(); return redirect(url_for('chat', username=username))
-    messages = Message.query.filter(((Message.sender_id == current_user.id) & (Message.receiver_id == other_user.id)) | ((Message.sender_id == other_user.id) & (Message.receiver_id == current_user.id))).order_by(Message.timestamp.asc()).all()
+    messages = Message.query.filter(((Message.sender_id == current_user.id) & (Message.receiver_id == other_user.id)) | ((Message.sender_id == other_user.id) & (Message.receiver_id == current_user.id))).order_by(Message.timestamp.desc()).limit(50).all()
+    messages.reverse()
     message_count = Message.query.filter(((Message.sender_id == current_user.id) & (Message.receiver_id == other_user.id)) | ((Message.sender_id == other_user.id) & (Message.receiver_id == current_user.id))).count()
     return render_template('chat.html', other_user=other_user, group=None, messages=messages, message_count=message_count)
 
@@ -1219,3 +1269,27 @@ def api_group_preview(code):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
+@app.route('/api/chat/send', methods=['POST'])
+@login_required
+def api_chat_send():
+    data = request.get_json() or {}
+    content = data.get('content', '').strip()
+    group_id = data.get('group_id')
+    receiver_id = data.get('receiver_id')
+    reply_to_id = data.get('reply_to_id')
+    if not content:
+        return jsonify({'success': False, 'error': 'empty'}), 400
+    msg = Message(sender_id=current_user.id, content=content, message_type='text')
+    if group_id:
+        msg.group_id = int(group_id)
+    elif receiver_id:
+        msg.receiver_id = int(receiver_id)
+    else:
+        return jsonify({'success': False, 'error': 'no_target'}), 400
+    if reply_to_id:
+        try: msg.reply_to_id = int(reply_to_id)
+        except: pass
+    db.session.add(msg)
+    db.session.commit()
+    return jsonify({'success': True, 'msg_id': msg.id, 'timestamp': msg.timestamp.strftime('%H:%M')})
