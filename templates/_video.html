@@ -1,4 +1,13 @@
-{% for video in videos %}
+
+    <style>
+    .video-container video, .video-player, video {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+        background: #000;
+    }
+    </style>
+    {% for video in videos %}
 <div class="video-container" data-video-id="{{ video.id }}">
     <div class="video-spinner" id="spinner-{{ video.id }}"></div>
     <video id="vid-{{ video.id }}" src="{{ video.filename }}" loop playsinline webkit-playsinline muted preload="none" {% if 'cloudinary' in video.filename %}poster="{{ video.filename|replace('.mp4', '.jpg') }}"{% endif %} onclick="handleVideoClick(this, {{ video.id }})" onwaiting="document.getElementById('spinner-{{ video.id }}').style.display='block'" onplaying="document.getElementById('spinner-{{ video.id }}').style.display='none'" oncanplay="this.muted=true; this.play().catch(e=>{}); document.getElementById('spinner-{{ video.id }}').style.display='none'"></video>

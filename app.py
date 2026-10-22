@@ -1437,26 +1437,31 @@ def api_join_group(code):
 # إضافات جديدة (سيدينج + أرقام خيالية)
 # ============================================================
 _SEED_URLS = [
+    "https://www.w3schools.com/html/mov_bbb.mp4",
+    "https://www.w3schools.com/html/movie.mp4",
+    "https://media.w3.org/2010/05/sintel/trailer.mp4",
+    "https://media.w3.org/2010/05/bunny/trailer.mp4",
+    "https://media.w3.org/2010/05/video/movie_300.mp4",
     "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
     "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
     "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
     "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
-    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
-    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
-    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
-    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4"
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4"
 ]
 for _u in _SEED_URLS:
     if _u not in VALID_VIDEOS: VALID_VIDEOS.append(_u)
 
 _CREATORS = {
-    "design_daily": "🎨 تصميمات احترافية", "motivation_hub": "💪 جرعة تحفيز",
-    "anime_lover": "🌸 عاشق الأنمي", "tech_news": "📱 أخبار التقنية",
-    "aesthetic_daily": "🍃 جماليات", "chef_daily": "🍳 وصفات سريعة",
-    "travel_world": "✈️ حول العالم", "gamer_zone": "🎮 عالم الألعاب",
-    "music_vibes": "🎵 موسيقى", "fitness_pro": "🏋️ رياضة"
+    "design_daily": ("🎨 تصميمات احترافية", "https://api.dicebear.com/7.x/lorelei/svg?seed=design_daily&backgroundColor=ffd5dc"),
+    "motivation_hub": ("💪 جرعة تحفيز", "https://api.dicebear.com/7.x/lorelei/svg?seed=motivation_hub&backgroundColor=b6e3f4"),
+    "anime_lover": ("🌸 عاشق الأنمي", "https://api.dicebear.com/7.x/lorelei/svg?seed=anime_lover&backgroundColor=ffdfbf"),
+    "tech_news": ("📱 أخبار التقنية", "https://api.dicebear.com/7.x/lorelei/svg?seed=tech_news&backgroundColor=c0aede"),
+    "aesthetic_daily": ("🍃 جماليات", "https://api.dicebear.com/7.x/lorelei/svg?seed=aesthetic_daily&backgroundColor=d1d4f9"),
+    "chef_daily": ("🍳 وصفات سريعة", "https://api.dicebear.com/7.x/lorelei/svg?seed=chef_daily&backgroundColor=ffd5dc"),
+    "travel_world": ("✈️ حول العالم", "https://api.dicebear.com/7.x/lorelei/svg?seed=travel_world&backgroundColor=b6e3f4"),
+    "gamer_zone": ("🎮 عالم الألعاب", "https://api.dicebear.com/7.x/lorelei/svg?seed=gamer_zone&backgroundColor=ffdfbf"),
+    "music_vibes": ("🎵 موسيقى", "https://api.dicebear.com/7.x/lorelei/svg?seed=music_vibes&backgroundColor=c0aede"),
+    "fitness_pro": ("🏋️ رياضة", "https://api.dicebear.com/7.x/lorelei/svg?seed=fitness_pro&backgroundColor=d1d4f9")
 }
 
 _CAPTIONS = []
