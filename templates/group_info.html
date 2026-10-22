@@ -177,6 +177,12 @@
             <button type="submit" class="btn-danger" onclick="return confirm('مغادرة المجموعة؟')"><i class="fa-solid fa-right-from-bracket"></i> مغادرة المجموعة</button>
         </form>
     </div>
+    {% else %}
+    <div style="padding: 15px;">
+        <form method="POST" action="/group/{{ group.id }}/delete" style="margin:0;">
+            <button type="submit" class="btn-danger" style="background:#7a0000;" onclick="return confirm('حذف المجموعة نهائياً؟ لا يمكن التراجع!')"><i class="fa-solid fa-trash"></i> حذف المجموعة نهائياً</button>
+        </form>
+    </div>
     {% endif %}
 
     <script>

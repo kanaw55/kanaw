@@ -248,6 +248,21 @@ def inbox():
 
 
 
+@app.route('/group/<int:group_id>/delete', methods=['POST'])
+@login_required
+def delete_group(group_id):
+    group = ChatGroup.query.get_or_404(group_id)
+    if current_user.id != group.creator_id:
+        return "غير مصرح", 403
+    Message.query.filter_by(group_id=group.id).delete()
+    GroupJoinRequest.query.filter_by(group_id=group.id).delete()
+    Story.query.filter_by(group_id=group.id).delete()
+    group.admins.clear()
+    group.members.clear()
+    db.session.delete(group)
+    db.session.commit()
+    return redirect(url_for('inbox'))
+
 @app.route('/group/<int:group_id>/update_info', methods=['POST'])
 @login_required
 def update_group_info(group_id):
@@ -280,6 +295,8 @@ def add_group_member(group_id, user_id):
         user = User.query.get(user_id)
         if user and user not in group.members:
             group.members.append(user)
+            db.session.add(Message(sender_id=current_user.id, group_id=group.id,
+                content=f"@{user.username} انضم للمجموعة", message_type='system'))
             db.session.commit()
     return redirect(url_for('group_info', group_id=group_id))
 
@@ -291,6 +308,8 @@ def leave_group(group_id):
         group.members.remove(current_user)
         if current_user in group.admins:
             group.admins.remove(current_user)
+        db.session.add(Message(sender_id=current_user.id, group_id=group.id,
+            content=f"@{current_user.username} غادر المجموعة", message_type='system'))
         db.session.commit()
         return redirect(url_for('inbox'))
     return redirect(url_for('group_info', group_id=group_id))
@@ -344,10 +363,20 @@ def group_stories(group_id):
 @login_required
 def update_chat_bg(group_id):
     group = ChatGroup.query.get_or_404(group_id)
-    if current_user not in group.admins: return "غير مصرح", 403
-    bg_url = request.form.get('chat_bg', '').strip()
-    group.chat_bg = bg_url if bg_url else None
-    db.session.commit()
+    if current_user not in group.admins:
+        return "غير مصرح", 403
+    if request.form.get('clear_bg') == 'on':
+        group.chat_bg = None
+        db.session.commit()
+        return redirect(url_for('chat_group', group_id=group_id))
+    file = request.files.get('chat_bg_image')
+    if file and file.filename != '':
+        try:
+            res = cloudinary.uploader.upload(file, resource_type="image")
+            group.chat_bg = res.get('secure_url')
+            db.session.commit()
+        except Exception as e:
+            flash(f'خطأ في رفع الصورة: {e}')
     return redirect(url_for('chat_group', group_id=group_id))
 
 @app.route('/group_info/<int:group_id>')
@@ -439,10 +468,12 @@ def reject_join(group_id, req_id):
 @login_required
 def make_admin(group_id, user_id):
     group = ChatGroup.query.get_or_404(group_id)
-    if current_user.id == group.creator_id: # فقط المالك
+    if current_user in group.admins:
         user = User.query.get(user_id)
-        if user and user not in group.admins:
+        if user and user in group.members and user not in group.admins:
             group.admins.append(user)
+            db.session.add(Message(sender_id=current_user.id, group_id=group.id,
+                content=f"@{user.username} أصبح مشرفاً", message_type='system'))
             db.session.commit()
     return redirect(url_for('group_info', group_id=group_id))
 
@@ -450,10 +481,12 @@ def make_admin(group_id, user_id):
 @login_required
 def remove_admin(group_id, user_id):
     group = ChatGroup.query.get_or_404(group_id)
-    if current_user.id == group.creator_id:
+    if current_user in group.admins:
         user = User.query.get(user_id)
         if user and user in group.admins and user.id != group.creator_id:
             group.admins.remove(user)
+            db.session.add(Message(sender_id=current_user.id, group_id=group.id,
+                content=f"@{user.username} لم يعد مشرفاً", message_type='system'))
             db.session.commit()
     return redirect(url_for('group_info', group_id=group_id))
 
@@ -464,8 +497,12 @@ def kick_member(group_id, user_id):
     if current_user in group.admins:
         user = User.query.get(user_id)
         if user and user in group.members and user.id != group.creator_id:
+            if user in group.admins and current_user.id != group.creator_id:
+                return "غير مصرح: فقط المالك يمكنه طرد المشرفين", 403
             group.members.remove(user)
             if user in group.admins: group.admins.remove(user)
+            db.session.add(Message(sender_id=current_user.id, group_id=group.id,
+                content=f"تمت إزالة @{user.username} من المجموعة", message_type='system'))
             db.session.commit()
     return redirect(url_for('group_info', group_id=group_id))
 
