@@ -1293,3 +1293,4 @@ def api_chat_send():
     db.session.add(msg)
     db.session.commit()
     return jsonify({'success': True, 'msg_id': msg.id, 'timestamp': msg.timestamp.strftime('%H:%M')})
+
