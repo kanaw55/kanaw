@@ -110,6 +110,15 @@ window.addEventListener('error', function(e) {
     };
     console.log("🟢 CHAT_CONFIG loaded:", window.CHAT_CONFIG);
     </script>
+
+
+    <script>
+    window.CHAT_CONFIG = {
+        groupId: {{ group.id|tojson if group else 'null' }},
+        otherUserId: {{ other_user.id|tojson if other_user else 'null' }}
+    };
+    console.log("🟢 CHAT_CONFIG loaded:", window.CHAT_CONFIG);
+    </script>
     
     <div class="header">
         <a href="/inbox"><i class="fa-solid fa-arrow-right"></i></a>
