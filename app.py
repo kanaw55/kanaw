@@ -1437,26 +1437,16 @@ def api_join_group(code):
 # إضافات جديدة (سيدينج + أرقام خيالية)
 # ============================================================
 _SEED_URLS = [
-    "https://assets.mixkit.co/videos/preview/mixkit-stars-in-space-1610-large.mp4",
-    "https://assets.mixkit.co/videos/preview/mixkit-tree-with-yellow-leaves-2763-large.mp4",
-    "https://assets.mixkit.co/videos/preview/mixkit-forest-stream-in-the-sunlight-529-large.mp4",
-    "https://assets.mixkit.co/videos/preview/mixkit-white-sand-beach-and-blue-ocean-1207-large.mp4",
-    "https://assets.mixkit.co/videos/preview/mixkit-going-down-a-curved-highway-through-a-mountain-range-41576-large.mp4",
-    "https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-city-traffic-at-night-11-large.mp4",
-    "https://assets.mixkit.co/videos/preview/mixkit-waves-in-the-water-1164-large.mp4",
-    "https://assets.mixkit.co/videos/preview/mixkit-man-working-on-his-laptop-308-large.mp4",
-    "https://assets.mixkit.co/videos/preview/mixkit-abstract-video-of-a-man-with-colorful-lights-42886-large.mp4",
-    "https://assets.mixkit.co/videos/preview/mixkit-little-plant-growing-in-the-soil-121-large.mp4",
-    "https://assets.mixkit.co/videos/preview/mixkit-close-up-of-a-camera-lens-42207-large.mp4",
-    "https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-a-lighthouse-in-the-sea-40734-large.mp4",
-    "https://assets.mixkit.co/videos/preview/mixkit-hands-typing-on-a-laptop-keyboard-42874-large.mp4",
-    "https://assets.mixkit.co/videos/preview/mixkit-rain-drops-on-a-window-1180-large.mp4",
-    "https://assets.mixkit.co/videos/preview/mixkit-coffee-being-poured-into-a-cup-1183-large.mp4",
-    "https://assets.mixkit.co/videos/preview/mixkit-abstract-purple-and-blue-lights-40863-large.mp4",
-    "https://assets.mixkit.co/videos/preview/mixkit-aerial-shot-of-a-forest-in-the-morning-41575-large.mp4",
-    "https://assets.mixkit.co/videos/preview/mixkit-close-up-of-a-paintbrush-painting-42342-large.mp4",
-    "https://assets.mixkit.co/videos/preview/mixkit-neon-lights-in-a-dark-room-41888-large.mp4",
-    "https://assets.mixkit.co/videos/preview/mixkit-silhouette-of-a-man-doing-push-ups-1218-large.mp4"
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4"
 ]
 for _u in _SEED_URLS:
     if _u not in VALID_VIDEOS: VALID_VIDEOS.append(_u)
