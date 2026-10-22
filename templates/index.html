@@ -164,25 +164,7 @@
         // 1. تشغيل وإيقاف الفيديو عند التمرير
         document.addEventListener("DOMContentLoaded", function() {
             const videos = document.querySelectorAll('.video-container video');
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    const video = entry.target;
-                    const videoId = video.parentElement.getAttribute('data-video-id');
-                    if (entry.isIntersecting) {
-                        video.muted = !isSoundOn;
-                        video.play().catch(e => console.log("Autoplay blocked"));
-                        if (!viewedVideos.includes(videoId)) {
-                            fetch(`/api/view/${videoId}`, {method: 'POST'}).catch(()=>{});
-                            viewedVideos.push(videoId);
-                            localStorage.setItem('viewed_videos', JSON.stringify(viewedVideos));
-                        }
-                    } else {
-                        video.pause();
-                        video.currentTime = 0;
-                    }
-                });
-            }, { threshold: 0.6 });
-            videos.forEach(video => observer.observe(video));
+            const observer = new IntersectionObserver(video => observer.observe(video));
         });
 
         // 2. زر الصوت (السماعة)
@@ -330,68 +312,94 @@
         
     </script>
 
+    
+
+
     <script>
-        // ==================== نظام التحميل المسبق الذكي (مثل تيك توك) ====================
+        // ==================== نظام النافذة المنزلقة (مثل تيك توك) ====================
+        const PRELOAD_AHEAD = 2; // عدد الفيديوهات القادمة للتحميل المسبق
         let isLoadingMore = false;
         let noMoreVideos = false;
+        let currentlyPlayingIndex = 0;
 
-        // مراقبة الفيديو الذي يظهر على الشاشة
+        function getVideoContainers() {
+            return Array.from(document.querySelectorAll('.video-container'));
+        }
+
+        function manageVideoPreload(activeIndex) {
+            const containers = getVideoContainers();
+            
+            containers.forEach((container, idx) => {
+                const video = container.querySelector('video');
+                if (!video) return;
+                
+                // النافذة: الفيديو الحالي + الفيديوهات القادمة
+                const isInWindow = idx >= activeIndex && idx <= activeIndex + PRELOAD_AHEAD;
+                
+                if (isInWindow) {
+                    // تحميل الفيديو
+                    if (video.preload !== 'auto') {
+                        video.preload = 'auto';
+                        video.load();
+                    }
+                } else if (idx < activeIndex - 1) {
+                    // فيديوهات سابقة: إلغاء تحميلها لتوفير الذاكرة
+                    if (video.preload !== 'none') {
+                        video.preload = 'none';
+                    }
+                }
+            });
+        }
+
         function setupVideoObserver() {
-            const videos = document.querySelectorAll('.video-container video');
+            const containers = getVideoContainers();
+            const videos = containers.map(c => c.querySelector('video')).filter(v => v);
+
             const observer = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
                     const video = entry.target;
                     const container = video.parentElement;
                     const videoId = container.getAttribute('data-video-id');
+                    const index = containers.indexOf(container);
                     
                     if (entry.isIntersecting) {
-                        // تشغيل الفيديو الحالي
-                        video.muted = false;
+                        currentlyPlayingIndex = index;
+                        
+                        // إدارة النافذة المنزلقة
+                        manageVideoPreload(index);
+                        
+                        // تشغيل الفيديو
+                        video.muted = !isSoundOn;
                         video.play().catch(e => {
                             video.muted = true;
                             video.play().catch(() => {});
                         });
                         
                         // تسجيل المشاهدة
-                        if (!viewedVideos.includes(videoId)) {
+                        if (navigator.onLine && !viewedVideos.includes(videoId)) {
                             fetch(`/api/view/${videoId}`, {method: 'POST'}).catch(()=>{});
                             viewedVideos.push(videoId);
                             localStorage.setItem('viewed_videos', JSON.stringify(viewedVideos));
                         }
                         
-                        // 🔥 التحميل المسبق للفيديو التالي
-                        const allContainers = document.querySelectorAll('.video-container');
-                        const currentIndex = Array.from(allContainers).indexOf(container);
-                        
-                        // تحميل الفيديوهين التاليين مسبقاً
-                        for (let i = 1; i <= 2; i++) {
-                            const nextContainer = allContainers[currentIndex + i];
-                            if (nextContainer) {
-                                const nextVideo = nextContainer.querySelector('video');
-                                if (nextVideo && nextVideo.preload !== 'auto') {
-                                    nextVideo.preload = 'auto';
-                                    nextVideo.load(); // إجبار المتصفح على بدء التحميل
-                                }
-                            }
-                        }
-                        
-                        // التمرير اللانهائي عند الوصول للفيديو رقم 25
-                        if (currentIndex >= allContainers.length - 5 && !isLoadingMore && !noMoreVideos) {
+                        // التمرير اللانهائي عند الاقتراب من النهاية
+                        if (index >= containers.length - 3 && !isLoadingMore && !noMoreVideos) {
                             loadMoreVideos();
                         }
-                        
                     } else {
-                        // إيقاف الفيديوهات التي خرجت من الشاشة
+                        // إيقاف الفيديو عند الخروج من الشاشة
                         video.pause();
                         video.currentTime = 0;
                     }
                 });
-            }, { threshold: 0.6 });
-            
+            }, { 
+                threshold: 0.6,
+                rootMargin: '0px'
+            });
+
             videos.forEach(video => observer.observe(video));
         }
 
-        // تحميل المزيد من الفيديوهات
         async function loadMoreVideos() {
             if (isLoadingMore || noMoreVideos) return;
             isLoadingMore = true;
@@ -409,30 +417,33 @@
                 const feed = document.getElementById('videoFeed');
                 feed.insertAdjacentHTML('beforeend', html);
                 
-                // إعادة تهيئة المراقب للفيديوهات الجديدة
+                // إعادة تهيئة المراقب
                 setTimeout(() => {
                     setupVideoObserver();
                     isLoadingMore = false;
-                }, 500);
+                }, 300);
                 
             } catch (e) {
-                console.error('خطأ في تحميل المزيد:', e);
+                console.error('خطأ:', e);
                 isLoadingMore = false;
             }
         }
 
-        // تشغيل النظام عند تحميل الصفحة
+        // تشغيل عند تحميل الصفحة
         document.addEventListener('DOMContentLoaded', function() {
-            setupVideoObserver();
-            
-            // تحميل مسبق لأول 3 فيديوهات
-            setTimeout(() => {
-                const firstVideos = document.querySelectorAll('.video-container video');
-                for (let i = 0; i < Math.min(3, firstVideos.length); i++) {
-                    firstVideos[i].preload = 'auto';
-                    firstVideos[i].load();
+            // تحميل أول فيديو + 2 قادمين فقط
+            const containers = getVideoContainers();
+            const initialCount = Math.min(3, containers.length);
+            for (let i = 0; i < initialCount; i++) {
+                const video = containers[i].querySelector('video');
+                if (video) {
+                    video.preload = 'auto';
+                    video.load();
                 }
-            }, 100);
+            }
+            
+            // بدء المراقب بعد تأخير بسيط
+            setTimeout(() => setupVideoObserver(), 200);
         });
     </script>
 
