@@ -124,9 +124,10 @@ class Message(db.Model):
     message_type = db.Column(db.String(20), default='text')
     reaction = db.Column(db.String(10), default=None)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    reply_to_id = db.Column(db.Integer, db.ForeignKey('message.id'), nullable=True)
     sender = db.relationship('User', foreign_keys=[sender_id], backref='sent_messages')
     receiver = db.relationship('User', foreign_keys=[receiver_id], backref='received_messages')
-    reply_to = db.relationship('Message', remote_side=[id], backref='message_replies')
+    reply_to = db.relationship('Message', remote_side=[id], foreign_keys=[reply_to_id], backref='message_replies')
 
 class Notification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
