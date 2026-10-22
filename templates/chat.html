@@ -186,7 +186,21 @@
                 @{{ other_user.username }}
                 {% endif %}
             </h3>
-            <div class="info">{% if message_count %}{{ message_count }} رسالة{% endif %}</div>
+            <div class="info" id="headerInfo">
+                {% if group %}
+                    {{ group.members|length }} عضو
+                {% elif other_user %}
+                    {% if other_user.last_seen and (now - other_user.last_seen).total_seconds() < 60 %}
+                        <span style="color:#4caf50;">● متصل الآن</span>
+                    {% elif other_user.last_seen %}
+                        آخر ظهور {{ other_user.last_seen.strftime('%H:%M') }}
+                    {% else %}
+                        &nbsp;
+                    {% endif %}
+                {% else %}
+                    {{ message_count or 0 }} رسالة
+                {% endif %}
+            </div>
         </div>
         {% if group %}
         {% if is_admin %}
@@ -227,6 +241,8 @@
     </div>
     {% endif %}
     {% endwith %}
+    
+    <div id="typingIndicator" style="display:none;text-align:center;font-size:12px;color:#4caf50;padding:4px;background:#1a1a1a;"></div>
     <div class="chat-box" id="chatBox" {% if group and group.chat_bg %}style="background-image: url('{{ group.chat_bg }}');"{% endif %}>
         {% for msg in messages %}
         {% set curr_date = msg.timestamp.strftime('%Y-%m-%d') %}
@@ -375,6 +391,40 @@
 
 </script>
     <script>
+    
+    // ===== Typing indicator =====
+    var __typingLast = 0;
+    function sendTyping() {
+        var now = Date.now();
+        if (now - __typingLast < 2000) return;
+        __typingLast = now;
+        var targetId = {% if group %}{{ group.id }}{% else %}{{ other_user.id if other_user else 'null' }}{% endif %};
+        if (!targetId) return;
+        var isGroup = {% if group %}true{% else %}false{% endif %};
+        fetch('/api/typing', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({target_id: targetId, is_group: isGroup})
+        }).catch(function(){});
+    }
+    var __msgInput = document.getElementById('messageInput');
+    if (__msgInput) __msgInput.addEventListener('input', sendTyping);
+
+    function pollTyping() {
+        var targetId = {% if group %}{{ group.id }}{% else %}{{ other_user.id if other_user else 'null' }}{% endif %};
+        if (!targetId) return;
+        var isGroup = {% if group %}true{% else %}false{% endif %};
+        fetch('/api/typing/status?target_id=' + targetId + '&is_group=' + isGroup)
+            .then(function(r){ return r.json(); })
+            .then(function(d){
+                var el = document.getElementById('typingIndicator');
+                if (!el) return;
+                if (d.typing) { el.textContent = d.text; el.style.display = 'block'; }
+                else { el.style.display = 'none'; }
+            }).catch(function(){});
+    }
+    setInterval(pollTyping, 2500);
+
     console.log("🟢 Clean Chat JS loaded");
     document.addEventListener("contextmenu", function(e) {
         if (e.target.closest(".message-wrapper")) e.preventDefault();
