@@ -68,11 +68,14 @@
     <div class="header">
         <a href="/inbox"><i class="fa-solid fa-arrow-right"></i></a>
         <div style="flex:1; text-align:center;">
-            <h3 style="margin:0;">{% if group %}{{ group.name }}{% else %}@{{ other_user.username }}{% endif %}</h3>
+            <h3 style="margin:0;">{% if group %}<a href="/group_info/{{ group.id }}" style="color:inherit;text-decoration:none;display:inline-block;">{{ group.name }} <i class="fa-solid fa-circle-info" style="font-size:11px;color:#007bff;"></i></a>{% else %}@{{ other_user.username }}{% endif %}</h3>
             <div class="info">{% if message_count %}{{ message_count }} رسالة{% endif %}</div>
         </div>
-        {% if group and is_admin %}
-            <a class="settings-btn" onclick="openBgModal()"><i class="fa-solid fa-image"></i></a>
+        {% if group %}
+        {% if is_admin %}
+        <a class="settings-btn" onclick="openBgModal()" title="خلفية"><i class="fa-solid fa-image"></i></a>
+        {% endif %}
+        <a href="/group_info/{{ group.id }}" class="settings-btn" style="color:#007bff;text-decoration:none;" title="معلومات المجموعة"><i class="fa-solid fa-circle-info"></i></a>
         {% endif %}
     </div>
 

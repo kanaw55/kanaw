@@ -180,11 +180,24 @@ def linkify(text):
     # تحويل الروابط إلى a tags
     return re.sub(r'(https?://[^\s]+|www\.[^\s]+)', r'<a href="\1" target="_blank" style="color:#00f2fe; text-decoration:underline;">\1</a>', text)
 
+@app.template_filter('format_text')
+def format_text(text):
+    if not text:
+        return text
+    from markupsafe import Markup, escape
+    s = str(escape(text))
+    s = re.sub(r'(https?://[^\s]+|www\.[^\s]+)', r'<a href="\1" target="_blank" style="color:#00f2fe;text-decoration:underline;">\1</a>', s)
+    s = re.sub(r'#(\w+)', r'<a href="/hashtag/\1" style="color:#00f2ea;text-decoration:none;">#\1</a>', s)
+    return Markup(s)
+
 @app.template_filter('hashtag')
 
 def hashtag_filter(text):
     if not text: return text
     return re.sub(r'#(\w+)', r'<a href="/hashtag/\1" style="color:#00f2ea; text-decoration:none;">#\1</a>', text)
+
+
+
 
 @app.route('/hashtag/<tag>')
 def hashtag_page(tag):
