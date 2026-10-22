@@ -635,5 +635,26 @@
         </div>
     </div>
 
+
+    <div id="msgMenu" class="msg-menu">
+        <button onclick="msgAction('reply')"><i class="fa-solid fa-reply"></i> رد</button>
+        <button onclick="msgAction('copy')"><i class="fa-solid fa-copy"></i> نسخ</button>
+        <button onclick="msgAction('forward')"><i class="fa-solid fa-share"></i> تحويل</button>
+        <button onclick="msgAction('react')"><i class="fa-solid fa-face-smile"></i> تفاعل</button>
+        <button onclick="msgAction('edit')" class="only-edit"><i class="fa-solid fa-pen"></i> تعديل</button>
+        <button onclick="msgAction('pin')" class="only-pin"><i class="fa-solid fa-thumbtack"></i> تثبيت</button>
+        <button onclick="msgAction('delete')" class="only-delete danger"><i class="fa-solid fa-trash"></i> حذف</button>
+    </div>
+    <div id="reactionPicker" class="reaction-picker">
+        <button onclick="sendReaction('👍')">👍</button>
+        <button onclick="sendReaction('❤️')">❤️</button>
+        <button onclick="sendReaction('😂')">😂</button>
+        <button onclick="sendReaction('😮')">😮</button>
+        <button onclick="sendReaction('😢')">😢</button>
+        <button onclick="sendReaction('🙏')">🙏</button>
+        <button onclick="sendReaction('🔥')">🔥</button>
+        <button onclick="sendReaction('👏')">👏</button>
+    </div>
+
 </body>
 </html>
