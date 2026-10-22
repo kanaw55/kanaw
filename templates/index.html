@@ -243,12 +243,11 @@
         }
 
         async function postComment() {
-            if (!isAuthenticated) return window.location.href='/login';
             const content = document.getElementById('commentInput').value.trim();
             if (!content || !currentVideoId) return;
             
             const btn = document.querySelector('button[onclick="postComment()"]');
-            if(btn) btn.disabled = true;
+            if(btn) { btn.disabled = true; btn.innerText = '...'; }
 
             try {
                 const res = await fetch(`/api/comment/${currentVideoId}`, {
@@ -257,21 +256,18 @@
                     body: JSON.stringify({ content: content })
                 });
                 
-                if (res.status === 401) {
-                    window.location.href = '/login';
-                    return;
-                }
+                if (res.status === 401) { window.location.href = '/login'; return; }
                 
                 if (res.ok) {
                     document.getElementById('commentInput').value = '';
                     loadComments(currentVideoId);
                 } else {
-                    alert('فشل إرسال التعليق. الرجاء المحاولة مرة أخرى.');
+                    alert('فشل إرسال التعليق. رمز الخطأ: ' + res.status);
                 }
             } catch (e) {
                 alert('خطأ في الاتصال بالشبكة.');
             } finally {
-                if(btn) btn.disabled = false;
+                if(btn) { btn.disabled = false; btn.innerText = 'إرسال'; }
             }
         }
 

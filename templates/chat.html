@@ -161,26 +161,29 @@
 
 </style>
 
-    <style>
-    .join-modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 9999; align-items: flex-end; justify-content: center; }
-    .join-modal-backdrop.active { display: flex; }
-    .join-modal { background: #1f2c34; width: 100%; max-width: 500px; border-radius: 20px 20px 0 0; padding: 20px; color: #fff; transform: translateY(100%); transition: transform 0.3s; max-height: 90vh; overflow-y: auto; box-shadow: 0 -5px 20px rgba(0,0,0,0.5); }
-    .join-modal-backdrop.active .join-modal { transform: translateY(0); }
-    .join-modal-header { display: flex; justify-content: flex-end; }
-    .join-modal-close { background: none; border: none; color: #aaa; font-size: 20px; cursor: pointer; }
-    .join-modal-body { text-align: center; }
-    .join-modal-pic { width: 90px; height: 90px; border-radius: 50%; background: #fe2c55; margin: 0 auto 15px; display: flex; justify-content: center; align-items: center; font-size: 40px; overflow: hidden; }
-    .join-modal-pic img { width: 100%; height: 100%; object-fit: cover; }
-    .join-modal-name { font-size: 20px; margin: 0 0 5px; }
-    .join-modal-members { color: #8696a0; font-size: 14px; margin: 0 0 15px; }
-    .join-modal-desc-container { text-align: right; background: #111b21; padding: 10px; border-radius: 8px; margin-bottom: 20px; }
-    .join-modal-desc { margin: 0; font-size: 14px; color: #e9edef; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-wrap; }
-    .join-modal-desc.expanded { -webkit-line-clamp: unset; }
-    .join-read-more { background: none; border: none; color: #00a884; cursor: pointer; padding: 5px 0 0; font-size: 13px; font-weight: bold; }
-    .join-modal-actions { display: flex; flex-direction: column; gap: 10px; }
-    .join-btn-primary { background: #00a884; color: #fff; border: none; padding: 15px; border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer; width: 100%; }
-    .join-btn-secondary { background: transparent; color: #00a884; border: none; padding: 10px; font-size: 14px; cursor: pointer; }
-    </style>
+    
+
+
+<style>
+.join-modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9999; align-items: flex-end; justify-content: center; }
+.join-modal-backdrop.active { display: flex; }
+.join-modal { background: #1f2c34; width: 100%; max-width: 500px; border-radius: 20px 20px 0 0; padding: 20px; color: #fff; transform: translateY(100%); transition: transform 0.3s; max-height: 90vh; overflow-y: auto; box-shadow: 0 -5px 20px rgba(0,0,0,0.5); }
+.join-modal-backdrop.active .join-modal { transform: translateY(0); }
+.join-modal-header { display: flex; justify-content: flex-end; }
+.join-modal-close { background: none; border: none; color: #aaa; font-size: 20px; cursor: pointer; }
+.join-modal-body { text-align: center; }
+.join-modal-pic { width: 90px; height: 90px; border-radius: 50%; background: #fe2c55; margin: 0 auto 15px; display: flex; justify-content: center; align-items: center; font-size: 40px; overflow: hidden; }
+.join-modal-pic img { width: 100%; height: 100%; object-fit: cover; }
+.join-modal-name { font-size: 20px; margin: 0 0 5px; }
+.join-modal-members { color: #8696a0; font-size: 14px; margin: 0 0 15px; }
+.join-modal-desc-container { text-align: right; background: #111b21; padding: 10px; border-radius: 8px; margin-bottom: 20px; }
+.join-modal-desc { margin: 0; font-size: 14px; color: #e9edef; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-wrap; }
+.join-modal-desc.expanded { -webkit-line-clamp: unset; }
+.join-read-more { background: none; border: none; color: #00a884; cursor: pointer; padding: 5px 0 0; font-size: 13px; font-weight: bold; }
+.join-modal-actions { display: flex; flex-direction: column; gap: 10px; }
+.join-btn-primary { background: #00a884; color: #fff; border: none; padding: 15px; border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer; width: 100%; }
+.join-btn-secondary { background: transparent; color: #00a884; border: none; padding: 10px; font-size: 14px; cursor: pointer; }
+</style>
 
 </head>
 
@@ -702,117 +705,14 @@
 
 
     <!-- Group Join Preview Modal -->
-    <div id="joinGroupModal" class="join-modal-backdrop">
-        <div class="join-modal">
-            <div class="join-modal-header">
-                <button class="join-modal-close" onclick="closeJoinModal()">✕</button>
-            </div>
-            <div class="join-modal-body">
-                <div id="joinGroupPic" class="join-modal-pic">👥</div>
-                <h3 id="joinGroupName" class="join-modal-name">...</h3>
-                <p id="joinGroupMembers" class="join-modal-members">...</p>
-                <div class="join-modal-desc-container">
-                    <p id="joinGroupDesc" class="join-modal-desc"></p>
-                    <button id="joinReadMoreBtn" class="join-read-more" onclick="toggleJoinDesc()" style="display:none;">قراءة المزيد</button>
-                </div>
-                <div id="joinModalActions" class="join-modal-actions"></div>
-            </div>
-        </div>
+    
     </div>
 
 
     
 
 
-    <script>
-    // قوية لاعتراض أي ضغطة على رابط مجموعة
-    document.addEventListener('click', function(e) {
-        var a = e.target.closest('a');
-        if (!a) return;
-        var href = a.getAttribute('href');
-        
-        // التحقق من أن الرابط يحتوي على join_group
-        if (href && href.indexOf('/join_group/') !== -1) {
-            // إذا كان داخلياً (يبدأ بـ / أو ينتهي بالدومين حقنا)
-            if (href.indexOf('kanaw-1.onrender.com') !== -1 || href.indexOf('/join_group/') === 0) {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                
-                // استخراج الكود
-                var match = href.match(/\/join_group\/([^\/\?#]+)/);
-                if (match && match[1]) {
-                    openJoinModal(match[1]);
-                }
-            }
-        }
-    }, true); // true = Capture phase لضمان الاصطياد قبل أي حدث آخر
-
-    function openJoinModal(code) {
-        fetch('/api/group_preview/' + code)
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (!data.success) {
-                    alert('رابط غير صالح أو المجموعة غير موجودة');
-                    return;
-                }
-                var modal = document.getElementById('joinGroupModal');
-                var pic = document.getElementById('joinGroupPic');
-                var name = document.getElementById('joinGroupName');
-                var members = document.getElementById('joinGroupMembers');
-                var desc = document.getElementById('joinGroupDesc');
-                var readMore = document.getElementById('joinReadMoreBtn');
-                var actions = document.getElementById('joinModalActions');
-
-                if (data.pic) pic.innerHTML = '<img src="' + data.pic + '">';
-                else pic.innerHTML = '<i class="fa-solid fa-users"></i>';
-                
-                name.textContent = data.name;
-                members.textContent = data.members_count + ' عضو';
-                
-                if (data.description) {
-                    desc.textContent = data.description;
-                    desc.classList.remove('expanded');
-                    readMore.style.display = 'none';
-                    setTimeout(function() {
-                        if (desc.scrollHeight > desc.clientHeight) {
-                            readMore.style.display = 'block';
-                        }
-                    }, 10);
-                } else {
-                    desc.textContent = 'لا يوجد وصف';
-                }
-
-                actions.innerHTML = '';
-                if (data.already_member) {
-                    actions.innerHTML = '<button class="join-btn-primary" onclick="window.location.href=\x27/chat_group/' + data.group_id + '\x27">فتح المجموعة</button>';
-                } else {
-                    var btnText = data.join_approval ? 'إرسال طلب انضمام' : 'انضمام للمجموعة';
-                    actions.innerHTML = '<button type="button" class="join-btn-primary" onclick="doJoinGroup(\'' + code + '\', this)">' + txt + '</button>';
-                    actions.innerHTML += '<button class="join-btn-secondary" onclick="closeJoinModal()">إلغاء</button>';
-                }
-                modal.classList.add('active');
-            })
-            .catch(function() { alert('حدث خطأ في تحميل المعلومات'); });
-    }
-
-    function closeJoinModal() {
-        var m = document.getElementById('joinGroupModal');
-        if (m) m.classList.remove('active');
-    }
-
-    function toggleJoinDesc() {
-        var desc = document.getElementById('joinGroupDesc');
-        var btn = document.getElementById('joinReadMoreBtn');
-        if (desc.classList.contains('expanded')) {
-            desc.classList.remove('expanded');
-            btn.textContent = 'قراءة المزيد';
-        } else {
-            desc.classList.add('expanded');
-            btn.textContent = 'عرض أقل';
-        }
-    }
-    </script>
+    
 
 
     <script>
@@ -899,26 +799,125 @@
     });
     </script>
 
+
+
+<div id="joinGroupModal" class="join-modal-backdrop">
+    <div class="join-modal">
+        <div class="join-modal-header">
+            <button class="join-modal-close" onclick="closeJoinModal()">✕</button>
+        </div>
+        <div class="join-modal-body">
+            <div id="joinGroupPic" class="join-modal-pic">👥</div>
+            <h3 id="joinGroupName" class="join-modal-name">...</h3>
+            <p id="joinGroupMembers" class="join-modal-members">...</p>
+            <div class="join-modal-desc-container">
+                <p id="joinGroupDesc" class="join-modal-desc"></p>
+                <button id="joinReadMoreBtn" class="join-read-more" onclick="toggleJoinDesc()" style="display:none;">قراءة المزيد</button>
+            </div>
+            <div id="joinModalActions" class="join-modal-actions"></div>
+        </div>
+    </div>
+</div>
+
+
 <script>
+document.addEventListener('click', function(e) {
+    var a = e.target.closest('a');
+    if (!a) return;
+    var href = a.getAttribute('href');
+    if (!href || href.indexOf('/join_group/') === -1) return;
+    if (href.indexOf('kanaw-1.onrender.com') === -1 && href.indexOf('/join_group/') !== 0) return;
+    
+    e.preventDefault();
+    var m = href.match(/\/join_group\/([^\/\?#]+)/);
+    if (!m || !m[1]) { window.location.href = href; return; }
+    var code = m[1];
+    
+    fetch('/api/group_preview/' + code)
+        .then(function(r){ 
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json(); 
+        })
+        .then(function(data){
+            if (!data.success) { window.location.href = '/join_group/' + code; return; }
+            showJoinModal(data, code);
+        })
+        .catch(function(err){ 
+            console.error('Preview error:', err);
+            window.location.href = '/join_group/' + code; 
+        });
+}, true);
 
-    function doJoinGroup(code, btn) {
-        if (btn) { btn.disabled = true; btn.textContent = 'جاري الانضمام...'; }
-        fetch('/api/join_group/' + code, { method: 'POST' })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    window.location.href = data.redirect_url;
-                } else {
-                    alert('فشل الانضمام: ' + (data.error || 'خطأ غير معروف'));
-                    if (btn) { btn.disabled = false; btn.textContent = 'انضمام'; }
-                }
-            })
-            .catch(() => {
-                alert('خطأ في الاتصال بالشبكة.');
-                if (btn) { btn.disabled = false; btn.textContent = 'انضمام'; }
-            });
+function showJoinModal(data, code) {
+    var modal = document.getElementById('joinGroupModal');
+    if (!modal) { window.location.href = '/join_group/' + code; return; }
+    var pic = document.getElementById('joinGroupPic');
+    var name = document.getElementById('joinGroupName');
+    var members = document.getElementById('joinGroupMembers');
+    var desc = document.getElementById('joinGroupDesc');
+    var readMore = document.getElementById('joinReadMoreBtn');
+    var actions = document.getElementById('joinModalActions');
+    
+    if (data.pic) pic.innerHTML = '<img src="' + data.pic + '">';
+    else pic.innerHTML = '<i class="fa-solid fa-users"></i>';
+    name.textContent = data.name;
+    members.textContent = data.members_count + ' عضو';
+    
+    if (data.description) {
+        desc.textContent = data.description;
+        desc.classList.remove('expanded');
+        readMore.style.display = 'none';
+        setTimeout(function(){ if (desc.scrollHeight > desc.clientHeight) readMore.style.display = 'block'; }, 10);
+    } else {
+        desc.textContent = 'لا يوجد وصف';
     }
+    
+    actions.innerHTML = '';
+    if (data.already_member) {
+        actions.innerHTML = '<button class="join-btn-primary" onclick="location.href=\'/chat_group/' + data.group_id + '\'">فتح المجموعة</button>';
+    } else {
+        var txt = data.join_approval ? 'إرسال طلب انضمام' : 'انضمام للمجموعة';
+        actions.innerHTML = '<button type="button" class="join-btn-primary" onclick="doJoinGroup(\'' + code + '\', this)">' + txt + '</button>';
+        actions.innerHTML += '<button class="join-btn-secondary" onclick="closeJoinModal()">إلغاء</button>';
+    }
+    modal.classList.add('active');
+}
 
+function doJoinGroup(code, btn) {
+    if (btn) { btn.disabled = true; btn.textContent = 'جاري الانضمام...'; }
+    fetch('/api/join_group/' + code, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = data.redirect_url;
+            } else {
+                alert('فشل الانضمام: ' + (data.error || 'خطأ غير معروف'));
+                if (btn) { btn.disabled = false; btn.textContent = 'انضمام'; }
+            }
+        })
+        .catch(() => {
+            alert('خطأ في الاتصال بالشبكة.');
+            if (btn) { btn.disabled = false; btn.textContent = 'انضمام'; }
+        });
+}
+
+function closeJoinModal() {
+    var m = document.getElementById('joinGroupModal');
+    if (m) m.classList.remove('active');
+}
+
+function toggleJoinDesc() {
+    var d = document.getElementById('joinGroupDesc');
+    var b = document.getElementById('joinReadMoreBtn');
+    if (d.classList.contains('expanded')) {
+        d.classList.remove('expanded');
+        b.textContent = 'قراءة المزيد';
+    } else {
+        d.classList.add('expanded');
+        b.textContent = 'عرض أقل';
+    }
+}
 </script>
+
 </body>
 </html>
