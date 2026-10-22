@@ -125,6 +125,7 @@ class Message(db.Model):
     reaction = db.Column(db.String(10), default=None)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     reply_to_id = db.Column(db.Integer, db.ForeignKey('message.id'), nullable=True)
+    is_pinned = db.Column(db.Boolean, default=False)
     sender = db.relationship('User', foreign_keys=[sender_id], backref='sent_messages')
     receiver = db.relationship('User', foreign_keys=[receiver_id], backref='received_messages')
     reply_to = db.relationship('Message', remote_side=[id], foreign_keys=[reply_to_id], backref='message_replies')
@@ -371,12 +372,9 @@ def group_info(group_id):
     if changed:
         db.session.commit()
     
-    friends_not_in_group = [u for u in current_user.followed if u not in group.members]
+    friends_not_in_group = [u for u in current_user.followed.all() if u not in group.members]
     join_requests = GroupJoinRequest.query.filter_by(group_id=group.id).all()
     return render_template('group_info.html', group=group, friends_not_in_group=friends_not_in_group, group_join_requests=join_requests, is_admin=(current_user in group.admins))
-
-@app.route('/group/<int:group_id>/update_info', methods=['POST'])
-
 
 @app.route('/join_group/<string:code>')
 @login_required
@@ -423,9 +421,6 @@ def reject_join(group_id, req_id):
         db.session.delete(req)
         db.session.commit()
     return redirect(url_for('group_info', group_id=group_id))
-
-@app.route('/group/<int:group_id>/update_info', methods=['POST'])
-
 
 @app.route('/group/<int:group_id>/make_admin/<int:user_id>', methods=['POST'])
 @login_required
