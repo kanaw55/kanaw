@@ -10,7 +10,7 @@
     {% for video in videos %}
 <div class="video-container" data-video-id="{{ video.id }}">
     <div class="video-spinner" id="spinner-{{ video.id }}"></div>
-    <video class="video-full-screen" id="vid-{{ video.id }}" src="{{ video.filename }}" loop playsinline webkit-playsinline muted preload="none" {% if 'cloudinary' in video.filename %}poster="{{ video.filename|replace('.mp4', '.jpg') }}"{% endif %} onclick="handleVideoClick(this, {{ video.id }})" onwaiting="document.getElementById('spinner-{{ video.id }}').style.display='block'" onplaying="document.getElementById('spinner-{{ video.id }}').style.display='none'" oncanplay="this.muted=true; this.play().catch(e=>{}); document.getElementById('spinner-{{ video.id }}').style.display='none'"></video>
+    <video  id="vid-{{ video.id }}" src="{{ video.filename }}" loop playsinline webkit-playsinline muted preload="none" {% if 'cloudinary' in video.filename %}poster="{{ video.filename|replace('.mp4', '.jpg') }}"{% endif %} onclick="handleVideoClick(this, {{ video.id }})" onwaiting="document.getElementById('spinner-{{ video.id }}').style.display='block'" onplaying="document.getElementById('spinner-{{ video.id }}').style.display='none'" oncanplay="this.muted=true; this.play().catch(e=>{}); document.getElementById('spinner-{{ video.id }}').style.display='none'"></video>
     <i class="fa-solid fa-heart heart-pop" id="heart-{{ video.id }}"></i>
     
     <button class="mute-btn" onclick="unmuteAllVideos()" style="position: absolute; top: 70px; left: 15px; background: rgba(0,0,0,0.8); color: white; border: 2px solid white; width: 50px; height: 50px; border-radius: 50%; font-size: 22px; z-index: 20; cursor: pointer;"><i class="fa-solid fa-volume-xmark"></i></button>

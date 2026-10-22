@@ -2001,13 +2001,17 @@ def fetch_media_advanced():
             try:
                 temp_dir = tempfile.mkdtemp()
                 # إعدادات متقدمة لتجاوز الحظر
+                # ضع رابط الوكيل السكني هنا (يجب أن يكون بصيغة: http://user:pass@host:port)
+                RESIDENTIAL_PROXY = "http://USERNAME:PASSWORD@HOST:PORT"
+                
                 ydl_opts = {
-                    'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+                    'format': 'b',
                     'outtmpl': os.path.join(temp_dir, 'video.%(ext)s'),
                     'quiet': True,
                     'no_warnings': True,
                     'nocheckcertificate': True,
-                    'impersonate': 'chrome',  # مهم جداً لتيك توك
+                    'impersonate': 'chrome',
+                    'noplaylist': True,}},  # تجاوز حماية يوتيوب الجديدة
                 }
                 
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:

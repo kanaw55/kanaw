@@ -63,7 +63,7 @@
         .bottom-nav a.active { color: #fff; }
         .bottom-nav i { font-size: 20px; }
     </style>
-<style>.video-full-screen { width: 100vw !important; height: 100vh !important; object-fit: cover !important; }</style></head>
+</head>
 <body>
     <div class="comments-backdrop" id="commentsBackdrop" onclick="closeComments()"></div>
     <div class="comments-modal" id="commentsModal">
@@ -109,7 +109,7 @@
         {% for video in videos %}
         <div class="video-container" data-video-id="{{ video.id }}">
             <div class="video-spinner" id="spinner-{{ video.id }}"></div>
-            <video class="video-full-screen" src="{{ video.filename }}" poster="https://via.placeholder.com/300x500/222/fff?text=Play" loop playsinline webkit-playsinline muted preload="{% if loop.index <= 3 %}auto{% else %}metadata{% endif %}" onclick="handleVideoClick(this, {{ video.id }})" onwaiting="document.getElementById('spinner-{{ video.id }}').style.display='block'" onplaying="document.getElementById('spinner-{{ video.id }}').style.display='none'"></video>
+            <video  src="{{ video.filename }}" poster="https://via.placeholder.com/300x500/222/fff?text=Play" loop playsinline webkit-playsinline muted preload="{% if loop.index <= 3 %}auto{% else %}metadata{% endif %}" onclick="handleVideoClick(this, {{ video.id }})" onwaiting="document.getElementById('spinner-{{ video.id }}').style.display='block'" onplaying="document.getElementById('spinner-{{ video.id }}').style.display='none'"></video>
             <i class="fa-solid fa-heart heart-pop" id="heart-{{ video.id }}"></i>
             
             <button class="mute-btn" onclick="toggleSound()" style="position: absolute; top: 70px; left: 15px; background: rgba(0,0,0,0.8); color: white; border: 2px solid white; width: 45px; height: 45px; border-radius: 50%; font-size: 20px; z-index: 20;"><i class="fa-solid fa-volume-xmark"></i></button>
