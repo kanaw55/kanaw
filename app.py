@@ -506,6 +506,28 @@ def join_group_confirm(code):
             return redirect(url_for('chat_group', group_id=group.id))
     except Exception as e:
         db.session.rollback()
+        return f"<div style='direction:rtl; padding:20px; text-align:center; color:red; font-family:sans-serif;'><h3>حدث خطأ في قاعدة البيانات</h3><p>{str(e)}</p><a href='/join_group/{code}'>حاول مرة أخرى</a></div>", 500
+
+def join_group_confirm(code):
+    group = ChatGroup.query.filter_by(invite_code=code).first()
+    if not group: return "الرابط غير صالح", 404
+    if current_user in group.members:
+        return redirect(url_for('chat_group', group_id=group.id))
+    
+    try:
+        if group.join_approval:
+            existing_req = GroupJoinRequest.query.filter_by(group_id=group.id, user_id=current_user.id).first()
+            if not existing_req:
+                req = GroupJoinRequest(group_id=group.id, user_id=current_user.id)
+                db.session.add(req)
+                db.session.commit()
+            return render_template('join_request_sent.html', group=group)
+        else:
+            group.members.append(current_user)
+            db.session.commit()
+            return redirect(url_for('chat_group', group_id=group.id))
+    except Exception as e:
+        db.session.rollback()
         return f"<div style='padding:20px; text-align:center; color:red; font-family:sans-serif;'><h3>حدث خطأ أثناء الانضمام</h3><p>{str(e)}</p><a href='/join_group/{code}'>حاول مرة أخرى</a></div>", 500
 
     if group.join_approval:
