@@ -228,6 +228,9 @@
             if (navigator.share) navigator.share({ title: 'Kanaw', url: url }).catch(err => console.log(err));
             else { navigator.clipboard.writeText(url).then(() => alert('تم نسخ رابط الحساب!')).catch(() => prompt('انسخ الرابط:', url)); }
         }
+    function toggleFollow(userId) {
+        window.location.href = '/toggle_follow/' + userId;
+    }
     </script>
 
     <div class="edit-modal-backdrop" id="qrBackdrop" onclick="closeQR()"></div>
@@ -281,6 +284,9 @@
                 if(data.success) window.location.reload();
             });
         }
+    function toggleFollow(userId) {
+        window.location.href = '/toggle_follow/' + userId;
+    }
     </script>
     
 
@@ -307,6 +313,9 @@
             player.src = '';
             modal.style.display = 'none';
         }
+    function toggleFollow(userId) {
+        window.location.href = '/toggle_follow/' + userId;
+    }
     </script>
     
 </body>

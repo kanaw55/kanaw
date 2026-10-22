@@ -234,6 +234,14 @@ def inbox():
     user_ids = set([id[0] for id in sent.all()] + [id[0] for id in received.all()])
     users = User.query.filter(User.id.in_(user_ids)).all()
     groups = current_user.chat_groups
+    stories = Story.query.filter(Story.created_at >= datetime.utcnow() - timedelta(days=1)).order_by(Story.created_at.desc()).all()
+    return render_template('inbox.html', users=users, groups=groups, stories=stories)
+def inbox():
+    sent = db.session.query(Message.receiver_id).filter(Message.sender_id == current_user.id, Message.group_id == None)
+    received = db.session.query(Message.sender_id).filter(Message.receiver_id == current_user.id, Message.group_id == None)
+    user_ids = set([id[0] for id in sent.all()] + [id[0] for id in received.all()])
+    users = User.query.filter(User.id.in_(user_ids)).all()
+    groups = current_user.chat_groups
     
     # إحصائيات الرسائل غير المقروءة للشخصي
     unread_dms = db.session.query(Message.sender_id, db.func.count(Message.id)).filter(
