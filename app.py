@@ -1038,6 +1038,49 @@ def api_chat_image():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/chat/audio', methods=['POST'])
+@login_required
+def api_chat_audio():
+    file = request.files.get('audio')
+    group_id = request.form.get('group_id', '').strip()
+    receiver_id = request.form.get('receiver_id', '').strip()
+    if not file:
+        return jsonify({'success': False, 'error': 'no file'}), 400
+    try:
+        res = cloudinary.uploader.upload(file, resource_type="video")
+        url = res.get('secure_url')
+        msg = Message(sender_id=current_user.id, content=url, message_type='audio')
+        if group_id: msg.group_id = int(group_id)
+        elif receiver_id: msg.receiver_id = int(receiver_id)
+        else: return jsonify({'success': False, 'error': 'no target'}), 400
+        db.session.add(msg); db.session.commit()
+        return jsonify({'success': True, 'url': url})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/chat/video', methods=['POST'])
+@login_required
+def api_chat_video():
+    file = request.files.get('video')
+    group_id = request.form.get('group_id', '').strip()
+    receiver_id = request.form.get('receiver_id', '').strip()
+    if not file:
+        return jsonify({'success': False, 'error': 'no file'}), 400
+    try:
+        if is_video_too_large(file):
+            return jsonify({'success': False, 'error': 'too large'}), 400
+        res = cloudinary.uploader.upload(file, resource_type="video")
+        url = res.get('secure_url')
+        if '/video/upload/' in url: url = url.replace('/video/upload/', '/video/upload/q_auto,f_auto/')
+        msg = Message(sender_id=current_user.id, content=url, message_type='video')
+        if group_id: msg.group_id = int(group_id)
+        elif receiver_id: msg.receiver_id = int(receiver_id)
+        else: return jsonify({'success': False, 'error': 'no target'}), 400
+        db.session.add(msg); db.session.commit()
+        return jsonify({'success': True, 'url': url})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)

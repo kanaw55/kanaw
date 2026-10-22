@@ -87,6 +87,20 @@
 
     </style>
 </head>
+<script>
+window.__jsErrorOverlay = true;
+window.addEventListener('error', function(e) {
+    var el = document.getElementById('__err');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = '__err';
+        el.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#d00;color:#fff;padding:10px;z-index:999999;font-size:11px;direction:ltr;word-break:break-all;font-family:monospace;max-height:200px;overflow:auto;';
+        document.body.insertBefore(el, document.body.firstChild);
+    }
+    var msg = (e.message || 'Unknown') + ' @ line ' + (e.lineno || '?') + ':' + (e.colno || '?') + ' | ' + (e.filename || '').split('/').pop();
+    el.textContent += '🔴 ' + msg + '\n';
+});
+</script>
 <body>
     <div class="header">
         <a href="/inbox"><i class="fa-solid fa-arrow-right"></i></a>
@@ -139,6 +153,13 @@
     </div>
     {% endif %}
 
+        {% with msgs = get_flashed_messages() %}
+    {% if msgs %}
+    <div style="padding:8px 15px;background:rgba(220,53,69,0.2);color:#ff9999;font-size:13px;text-align:center;">
+        {% for m in msgs %}{{ m }}<br>{% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
     <div class="chat-box" id="chatBox" {% if group and group.chat_bg %}style="background-image: url('{{ group.chat_bg }}');"{% endif %}>
         {% for msg in messages %}
         {% set curr_date = msg.timestamp.strftime('%Y-%m-%d') %}
@@ -173,6 +194,8 @@
                 
                 {% if msg.message_type == 'image' %}
                 <img src="{{ msg.content }}" style="max-width:250px;width:100%;border-radius:8px;display:block;margin-bottom:5px;cursor:pointer;" onclick="window.open('{{ msg.content }}','_blank');">
+                {% elif msg.message_type == 'video' %}
+                <video src="{{ msg.content }}" controls style="max-width:250px;width:100%;border-radius:8px;display:block;margin-bottom:5px;"></video>
                 {% elif msg.message_type == 'audio' %}
                 <div class="audio-message"><i class="fa-solid fa-microphone"></i><audio src="{{ msg.content }}" controls></audio></div>
                 {% else %}
@@ -198,7 +221,8 @@
         <input type="hidden" name="reply_to_id" id="replyToId" value="">
         <input type="text" name="content" id="messageInput" placeholder="اكتب رسالة..." required autocomplete="off">
         <button type="submit" class="send-btn" id="sendBtn"><i class="fa-solid fa-paper-plane"></i></button>
-        <button type="button" class="mic-btn image-btn" onclick="document.getElementById('imageInput').click()"><i class="fa-solid fa-image"></i></button>
+        <button type="button" class="mic-btn image-btn" onclick="document.getElementById('imageInput').click()" title="صورة"><i class="fa-solid fa-image"></i></button>
+        <button type="button" class="mic-btn image-btn" onclick="document.getElementById('videoInput').click()" title="فيديو"><i class="fa-solid fa-video"></i></button>
         <button type="button" class="mic-btn" id="micBtn" onclick="toggleRecord()"><i class="fa-solid fa-microphone"></i></button>
     </form>
 
@@ -276,6 +300,7 @@
 
     <!-- input صورة مخفي -->
     <input type="file" id="imageInput" accept="image/*" style="display:none;" onchange="sendImage(this)">
+    <input type="file" id="videoInput" accept="video/*" style="display:none;" onchange="sendVideo(this)">
 
 </body>');
         }
@@ -333,6 +358,9 @@
         }
     
 
+        console.log('🟢 chat.html JS loaded');
+        window.addEventListener('error', function(e){ console.error('🔴 JS Error:', e.message); });
+        
         // ===== قائمة الرسالة (Long-press / Right-click) =====
         let currentMsgEl = null, currentMsgData = null, longPressTimer = null;
         
@@ -357,6 +385,7 @@
             menu.style.left = Math.min(x, window.innerWidth - 200) + 'px';
             menu.style.top = Math.min(y, window.innerHeight - 320) + 'px';
             menu.classList.add('active');
+            if (typeof __menuOpenedAt !== 'undefined') __menuOpenedAt = Date.now();
         }
         
         // Long-press للموبايل
@@ -372,13 +401,14 @@
         document.addEventListener('touchmove', function() { clearTimeout(longPressTimer); });
         
         // إغلاق عند النقر خارجاً
+        let __menuOpenedAt = 0;
         document.addEventListener('click', function(e) {
+            if (Date.now() - __menuOpenedAt < 400) return;
             const menu = document.getElementById('msgMenu');
             const picker = document.getElementById('reactionPicker');
-            if (!menu.contains(e.target) && !picker.contains(e.target)) {
-                menu.classList.remove('active');
-                picker.classList.remove('active');
-            }
+            if (menu.contains(e.target) || picker.contains(e.target)) return;
+            menu.classList.remove('active');
+            picker.classList.remove('active');
         });
 
         function toast(msg) {
@@ -523,6 +553,21 @@
             {% if group %}fd.append('group_id', '{{ group.id }}');{% else %}fd.append('receiver_id', '{{ other_user.id }}');{% endif %}
             toast('📤 جاري الرفع...');
             fetch('/api/chat/image', {method: 'POST', body: fd})
+                .then(r => r.json()).then(d => {
+                    if (d.success) location.reload();
+                    else alert('فشل الرفع: ' + (d.error || ''));
+                });
+            input.value = '';
+        }
+
+    
+        function sendVideo(input) {
+            if (!input.files || !input.files[0]) return;
+            const fd = new FormData();
+            fd.append('video', input.files[0]);
+            {% if group %}fd.append('group_id', '{{ group.id }}');{% else %}fd.append('receiver_id', '{{ other_user.id }}');{% endif %}
+            toast('📤 جاري رفع الفيديو...');
+            fetch('/api/chat/video', {method: 'POST', body: fd})
                 .then(r => r.json()).then(d => {
                     if (d.success) location.reload();
                     else alert('فشل الرفع: ' + (d.error || ''));
