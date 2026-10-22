@@ -37,11 +37,11 @@
         {% with messages = get_flashed_messages() %}{% if messages %}{% for message in messages %}<div class="msg">{{ message }}</div>{% endfor %}{% endif %}{% endwith %}
         <form method="POST">
             <div class="input-group">
-                <input type="text" name="username" placeholder="اسم المستخدم (فريد)" required>
+                <input type="text" name="username" placeholder="اسم المستخدم (فريد)" required pattern="[A-Za-z0-9_]+" minlength="5" title="5 أحرف إنجليزية على الأقل، بدون مسافات" required>
                 <i class="fa-solid fa-at"></i>
             </div>
             <div class="input-group">
-                <input type="password" name="password" placeholder="كلمة المرور" required>
+                <input type="password" name="password" placeholder="كلمة المرور" required minlength="9" title="9 أحرف على الأقل" required>
                 <i class="fa-solid fa-lock"></i>
             </div>
             <button type="submit" class="btn-submit">تسجيل الآن</button>

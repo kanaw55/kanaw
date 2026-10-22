@@ -296,7 +296,11 @@ def inbox():
         user_ids = set([id[0] for id in sent.all()] + [id[0] for id in received.all()])
         users = User.query.filter(User.id.in_(user_ids)).all()
         groups = current_user.chat_groups
-        stories = Story.query.filter(Story.created_at >= datetime.utcnow() - timedelta(days=1)).order_by(Story.created_at.desc()).all()
+        followed_ids = [u.id for u in current_user.followed.all()]
+        stories = Story.query.filter(
+            Story.created_at >= datetime.utcnow() - timedelta(days=1),
+            Story.user_id.in_(followed_ids + [current_user.id])
+        ).order_by(Story.created_at.desc()).all()
         stories_json = [{'url': s.media_url, 'user': s.user.username, 'pic': s.user.profile_pic or '', 'time': 'الآن'} for s in stories if s.user]
         return render_template('inbox.html', users=users, groups=groups, stories=stories, stories_json=stories_json)
     except:
@@ -947,8 +951,20 @@ def register():
             return redirect(url_for('register'))
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
-        if not username or not password: flash('الرجاء إدخال الاسم وكلمة المرور'); return redirect(url_for('register'))
-        if User.query.filter_by(username=username).first(): flash('اسم المستخدم محجوز'); return redirect(url_for('register'))
+        
+        if not username or not password: 
+            flash('الرجاء إدخال الاسم وكلمة المرور'); return redirect(url_for('register'))
+            
+        # التحقق من اسم المستخدم (إنجليزي، 5 أحرف على الأقل)
+        if len(username) < 5 or not re.match(r'^[A-Za-z0-9_]+$', username):
+            flash('اسم المستخدم يجب أن يكون بالإنجليزية، بدون مسافات، ولا يقل عن 5 أحرف.'); return redirect(url_for('register'))
+            
+        # التحقق من كلمة المرور (9 أحرف على الأقل)
+        if len(password) < 9:
+            flash('كلمة المرور يجب أن تكون 9 أحرف على الأقل.'); return redirect(url_for('register'))
+            
+        if User.query.filter_by(username=username).first(): 
+            flash('اسم المستخدم محجوز'); return redirect(url_for('register'))
         new_user = User(username=username); new_user.set_password(password)
         db.session.add(new_user); db.session.commit(); login_user(new_user)
         resp = make_response(redirect(url_for('index'))); resp.set_cookie('accounts_created', str(accounts_created + 1), max_age=30*24*60*60)

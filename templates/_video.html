@@ -36,7 +36,7 @@
             <span style="font-size: 12px; font-weight: bold;">حفظ</span>
         </div>
         
-        <div class="action" data-vid="{{ video.id }}" onclick="shareVideo('{{ video.user.username }}')" style="display:flex; flex-direction:column; align-items:center; gap:5px; color:white; cursor:pointer;">
+        <div class="action" data-vid="{{ video.id }}" onclick="shareVideo('{{ video.user.username }}', event)" style="display:flex; flex-direction:column; align-items:center; gap:5px; color:white; cursor:pointer;">
             <i class="fa-solid fa-share" style="font-size: 30px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8);"></i>
             <span style="font-size: 12px; font-weight: bold;">مشاركة</span>
         </div>
