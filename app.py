@@ -1600,3 +1600,175 @@ def seed_upload_one(idx):
         css = 'body{font-family:sans-serif;background:#111;color:#fff;padding:20px}'
         return '<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><style>' + css + '</style></head><body><h1>❌ خطأ في الفيديو ' + str(idx+1) + '</h1><p style="background:#3a1a1a;padding:15px;border-radius:8px;">' + str(e) + '</p><a href="/admin/seed_upload" style="color:#fe2c55;">← رجوع وحاول مرة أخرى</a></body></html>', 500
 
+
+# ============================================================
+# نظام رفع 120 فيديو تصميم (30 مصدر × 4 تأثيرات)
+# ============================================================
+
+_DESIGN_URLS = [
+    # تصميمات ومؤثرات بصرية (Mixkit)
+    "https://assets.mixkit.co/videos/preview/mixkit-abstract-purple-and-blue-lights-40863-large.mp4",
+    "https://assets.mixkit.co/videos/preview/mixkit-neon-lights-in-a-dark-room-41888-large.mp4",
+    "https://assets.mixkit.co/videos/preview/mixkit-close-up-of-a-camera-lens-42207-large.mp4",
+    "https://assets.mixkit.co/videos/preview/mixkit-close-up-of-a-paintbrush-painting-42342-large.mp4",
+    "https://assets.mixkit.co/videos/preview/mixkit-hands-typing-on-a-laptop-keyboard-42874-large.mp4",
+    "https://assets.mixkit.co/videos/preview/mixkit-stars-in-space-1610-large.mp4",
+    "https://assets.mixkit.co/videos/preview/mixkit-tree-with-yellow-leaves-2763-large.mp4",
+    "https://assets.mixkit.co/videos/preview/mixkit-forest-stream-in-the-sunlight-529-large.mp4",
+    "https://assets.mixkit.co/videos/preview/mixkit-white-sand-beach-and-blue-ocean-1207-large.mp4",
+    "https://assets.mixkit.co/videos/preview/mixkit-going-down-a-curved-highway-through-a-mountain-range-41576-large.mp4",
+    "https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-city-traffic-at-night-11-large.mp4",
+    "https://assets.mixkit.co/videos/preview/mixkit-waves-in-the-water-1164-large.mp4",
+    "https://assets.mixkit.co/videos/preview/mixkit-man-working-on-his-laptop-308-large.mp4",
+    "https://assets.mixkit.co/videos/preview/mixkit-abstract-video-of-a-man-with-colorful-lights-42886-large.mp4",
+    "https://assets.mixkit.co/videos/preview/mixkit-little-plant-growing-in-the-soil-121-large.mp4",
+    "https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-a-lighthouse-in-the-sea-40734-large.mp4",
+    "https://assets.mixkit.co/videos/preview/mixkit-rain-drops-on-a-window-1180-large.mp4",
+    "https://assets.mixkit.co/videos/preview/mixkit-coffee-being-poured-into-a-cup-1183-large.mp4",
+    "https://assets.mixkit.co/videos/preview/mixkit-aerial-shot-of-a-forest-in-the-morning-41575-large.mp4",
+    "https://assets.mixkit.co/videos/preview/mixkit-silhouette-of-a-man-doing-push-ups-1218-large.mp4",
+    # مصادر موثوقة إضافية
+    "https://www.w3schools.com/html/mov_bbb.mp4",
+    "https://www.w3schools.com/html/movie.mp4",
+    "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+    "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/friday.mp4",
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+]
+
+# 4 تأثيرات Cloudinary لكل فيديو → 30 × 4 = 120 فيديو
+_TRANSFORMATIONS = [
+    ("", "الأصلي"),
+    ("e_grayscale", "أبيض وأسود"),
+    ("e_sepia", "كلاسيكي"),
+    ("e_blur:300", "خلفية سينمائية"),
+]
+
+_DESIGN_CREATORS = {
+    "design_daily": ("🎨 تصميمات احترافية", "https://api.dicebear.com/7.x/lorelei/svg?seed=design_daily&backgroundColor=ffd5dc"),
+    "art_gallery": ("🖼️ معرض فني", "https://api.dicebear.com/7.x/lorelei/svg?seed=art_gallery&backgroundColor=b6e3f4"),
+    "visual_vibes": ("✨ مؤثرات بصرية", "https://api.dicebear.com/7.x/lorelei/svg?seed=visual_vibes&backgroundColor=ffdfbf"),
+    "creative_mind": ("💡 عقل مبدع", "https://api.dicebear.com/7.x/lorelei/svg?seed=creative_mind&backgroundColor=c0aede"),
+}
+
+
+@app.route('/admin/batch_seed')
+@login_required
+def batch_seed_home():
+    # إنشاء صانعي المحتوى
+    for username, (bio, pic) in _DESIGN_CREATORS.items():
+        if not User.query.filter_by(username=username).first():
+            u = User(username=username, bio=bio, profile_pic=pic, is_verified=False)
+            u.set_password("curator123456")
+            db.session.add(u)
+    db.session.commit()
+    
+    total_target = len(_DESIGN_URLS) * len(_TRANSFORMATIONS)
+    current = Video.query.filter(Video.caption.like('%[batch%')).count()
+    batches = (total_target + 4) // 5  # 5 في المرة
+    
+    css = 'body{font-family:sans-serif;background:#111;color:#fff;padding:20px;max-width:600px;margin:0 auto;text-align:center}a{text-decoration:none;color:#fff}.btn{display:block;padding:15px;background:#fe2c55;color:#fff;border-radius:8px;margin:10px 0;font-size:16px;font-weight:bold}.progress{background:#222;height:20px;border-radius:10px;margin:20px 0;overflow:hidden}.fill{background:linear-gradient(90deg,#fe2c55,#ff9800);height:100%;transition:width 0.5s}.stats{background:#1a3a1a;padding:15px;border-radius:8px;margin:20px 0}'
+    
+    html = '<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>Batch Seed</title><style>' + css + '</style></head><body>'
+    html += '<h1>🎨 رفع 120 فيديو تصميم</h1>'
+    html += '<div class="stats"><strong>التقدم: ' + str(current) + ' / ' + str(total_target) + ' فيديو</strong></div>'
+    html += '<div class="progress"><div class="fill" style="width:' + str(int(current/total_target*100) if total_target else 0) + '%"></div></div>'
+    html += '<p style="color:#888;font-size:13px;">' + str(len(_DESIGN_URLS)) + ' فيديو أساسي × ' + str(len(_TRANSFORMATIONS)) + ' تأثيرات = ' + str(total_target) + ' فيديو</p>'
+    html += '<a href="/admin/batch_upload/0" class="btn">🚀 ابدأ الرفع (يتم تلقائياً)</a>'
+    html += '<a href="/admin/seed_cleanup" style="color:#ff6666;font-size:13px;">🗑️ حذف كل الفيديوهات المضافة سابقاً</a>'
+    html += '</body></html>'
+    return html
+
+
+@app.route('/admin/batch_upload/<int:start>')
+@login_required
+def batch_upload(start):
+    creators = list(_DESIGN_CREATORS.keys())
+    total_target = len(_DESIGN_URLS) * len(_TRANSFORMATIONS)
+    
+    if start >= total_target:
+        return redirect('/admin/batch_seed')
+    
+    # رفع 5 في المرة
+    end = min(start + 5, total_target)
+    success = 0
+    fail = 0
+    errors = []
+    
+    for idx in range(start, end):
+        try:
+            url_idx = idx // len(_TRANSFORMATIONS)
+            trans_idx = idx % len(_TRANSFORMATIONS)
+            transformation, trans_name = _TRANSFORMATIONS[trans_idx]
+            source_url = _DESIGN_URLS[url_idx]
+            
+            creator_name = creators[idx % len(creators)]
+            creator = User.query.filter_by(username=creator_name).first()
+            
+            # رفع إلى Cloudinary
+            res = cloudinary.uploader.upload(source_url, resource_type="video", folder="seed_batch")
+            cloud_url = res['secure_url']
+            
+            # تطبيق التحويل (بعد الرفع)
+            if transformation:
+                cloud_url = cloud_url.replace('/video/upload/', '/video/upload/' + transformation + '/')
+            
+            if '/video/upload/' in cloud_url and 'q_auto' not in cloud_url:
+                cloud_url = cloud_url.replace('/video/upload/', '/video/upload/q_auto,f_auto/')
+            
+            caption = "تصميم " + trans_name + " - فيديو " + str(idx+1) + " [batch]"
+            
+            # تحقق من عدم وجود مكرر
+            if Video.query.filter_by(caption=caption).first():
+                continue
+            
+            v = Video(
+                filename=cloud_url,
+                caption=caption,
+                user_id=creator.id,
+                views=random.randint(5000, 200000),
+                likes_count=random.randint(500, 50000)
+            )
+            db.session.add(v)
+            db.session.commit()
+            success += 1
+        except Exception as e:
+            fail += 1
+            errors.append(str(e)[:100])
+            db.session.rollback()
+    
+    # الانتقال للدفعة التالية
+    next_start = end
+    auto_next = ''
+    if next_start < total_target:
+        auto_next = '<meta http-equiv="refresh" content="1;url=/admin/batch_upload/' + str(next_start) + '">'
+    
+    css = 'body{font-family:sans-serif;background:#111;color:#fff;padding:20px;max-width:600px;margin:0 auto;text-align:center}.btn{display:block;padding:15px;background:#28a745;color:#fff;border-radius:8px;margin:10px 0;font-size:16px;font-weight:bold;text-decoration:none}.error{background:#3a1a1a;padding:10px;border-radius:8px;margin:10px 0;color:#ff9999;font-size:12px;text-align:left}'
+    
+    html = '<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8">' + auto_next + '<style>' + css + '</style></head><body>'
+    html += '<h1>✅ الدفعة ' + str(start//5 + 1) + ' من ' + str((total_target+4)//5) + '</h1>'
+    html += '<p>تم رفع <strong style="color:#28a745;">' + str(success) + '</strong> فيديو'
+    if fail > 0:
+        html += ' — فشل: <strong style="color:#dc3545;">' + str(fail) + '</strong>'
+    html += '</p>'
+    
+    if errors:
+        html += '<div class="error"><strong>الأخطاء (أول 3):</strong><br>'
+        for e in errors[:3]:
+            html += '• ' + e + '<br>'
+        html += '</div>'
+    
+    if next_start < total_target:
+        html += '<p style="color:#888;font-size:13px;">⏳ الانتقال للدفعة التالية تلقائياً...</p>'
+        html += '<a href="/admin/batch_upload/' + str(next_start) + '" class="btn">← إذا لم ينقلك تلقائياً، اضغط هنا</a>'
+    else:
+        html += '<h2 style="color:#28a745;">🎉 اكتمل! ' + str(total_target) + ' فيديو جاهز</h2>'
+        html += '<a href="/" class="btn">← افتح الرئيسية</a>'
+    
+    html += '</body></html>'
+    return html
+
