@@ -839,13 +839,17 @@ def api_like_comment(comment_id):
 @app.route('/api/share_video/<int:video_id>', methods=['POST'])
 @login_required
 def api_share_video(video_id):
-    receiver_id = request.get_json().get('receiver_id')
-    if receiver_id:
-        db.session.add(Message(sender_id=current_user.id, receiver_id=receiver_id, content=f"شاهد هذا الفيديو: {request.host_url}?video_id={video_id}"))
-        db.session.add(Notification(user_id=receiver_id, sender_id=current_user.id, type='message'))
-        db.session.commit()
-        return jsonify({'success': True})
-    return jsonify({'success': False})
+    try:
+        receiver_id = request.get_json().get('receiver_id')
+        if receiver_id:
+            db.session.add(Message(sender_id=current_user.id, receiver_id=receiver_id, content=f"شاهد هذا الفيديو: {request.host_url}?video_id={video_id}"))
+            db.session.add(Notification(user_id=receiver_id, sender_id=current_user.id, type='message'))
+            db.session.commit()
+            return jsonify({'success': True})
+        return jsonify({'success': False, 'error': 'no_receiver'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/report_video/<int:video_id>', methods=['POST'])
 @login_required
