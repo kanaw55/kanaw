@@ -1194,3 +1194,28 @@ from markupsafe import Markup, escape
 
 
 
+
+
+@app.route('/api/group_preview/<string:code>')
+@login_required
+def api_group_preview(code):
+    try:
+        group = ChatGroup.query.filter_by(invite_code=code).first()
+        if not group:
+            return jsonify({'success': False, 'error': 'not_found'}), 404
+        
+        already_member = current_user in group.members
+        
+        return jsonify({
+            'success': True,
+            'name': group.name or 'مجموعة بدون اسم',
+            'pic': group.group_pic or '',
+            'description': group.description or '',
+            'members_count': len(group.members),
+            'join_approval': bool(group.join_approval),
+            'already_member': already_member,
+            'group_id': group.id
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
