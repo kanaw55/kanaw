@@ -1294,3 +1294,30 @@ def api_chat_send():
     db.session.commit()
     return jsonify({'success': True, 'msg_id': msg.id, 'timestamp': msg.timestamp.strftime('%H:%M')})
 
+
+@app.route('/api/join_group/<string:code>', methods=['POST'])
+@login_required
+def api_join_group(code):
+    try:
+        group = ChatGroup.query.filter_by(invite_code=code).first()
+        if not group:
+            return jsonify({'success': False, 'error': 'الرابط غير صالح'}), 404
+            
+        if current_user in group.members:
+            return jsonify({'success': True, 'redirect_url': url_for('chat_group', group_id=group.id)})
+            
+        if group.join_approval:
+            existing_req = GroupJoinRequest.query.filter_by(group_id=group.id, user_id=current_user.id).first()
+            if not existing_req:
+                req = GroupJoinRequest(group_id=group.id, user_id=current_user.id)
+                db.session.add(req)
+                db.session.commit()
+            return jsonify({'success': True, 'redirect_url': url_for('inbox')})
+            
+        group.members.append(current_user)
+        db.session.commit()
+        return jsonify({'success': True, 'redirect_url': url_for('chat_group', group_id=group.id)})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+

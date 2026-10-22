@@ -788,7 +788,7 @@
                     actions.innerHTML = '<button class="join-btn-primary" onclick="window.location.href=\x27/chat_group/' + data.group_id + '\x27">فتح المجموعة</button>';
                 } else {
                     var btnText = data.join_approval ? 'إرسال طلب انضمام' : 'انضمام للمجموعة';
-                    actions.innerHTML = '<form method="POST" action="/join_group/' + code + '/confirm" style="margin:0;"><button type="submit" class="join-btn-primary">' + btnText + '</button></form>';
+                    actions.innerHTML = '<button type="button" class="join-btn-primary" onclick="doJoinGroup(\'' + code + '\', this)">' + txt + '</button>';
                     actions.innerHTML += '<button class="join-btn-secondary" onclick="closeJoinModal()">إلغاء</button>';
                 }
                 modal.classList.add('active');
@@ -899,5 +899,26 @@
     });
     </script>
 
+<script>
+
+    function doJoinGroup(code, btn) {
+        if (btn) { btn.disabled = true; btn.textContent = 'جاري الانضمام...'; }
+        fetch('/api/join_group/' + code, { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = data.redirect_url;
+                } else {
+                    alert('فشل الانضمام: ' + (data.error || 'خطأ غير معروف'));
+                    if (btn) { btn.disabled = false; btn.textContent = 'انضمام'; }
+                }
+            })
+            .catch(() => {
+                alert('خطأ في الاتصال بالشبكة.');
+                if (btn) { btn.disabled = false; btn.textContent = 'انضمام'; }
+            });
+    }
+
+</script>
 </body>
 </html>
