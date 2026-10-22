@@ -48,5 +48,27 @@
         <a href="{% if current_user.is_authenticated %}/inbox{% else %}/login{% endif %}"><i class="fa-solid fa-envelope"></i> الرسائل</a>
         <a href="{% if current_user.is_authenticated %}/profile/{{ current_user.username }}{% else %}/login{% endif %}"><i class="fa-solid fa-user"></i> حسابي</a>
     </div>
+
+    <script>
+    (function(){
+        if (window.__apiGuard) return;
+        window.__apiGuard = true;
+        const origFetch = window.fetch;
+        window.fetch = function(...args){
+            return origFetch.apply(this, args).then(function(res){
+                if (res.status === 401) {
+                    res.clone().json().then(function(d){
+                        if (d && d.login_url) window.location.href = d.login_url;
+                        else window.location.href = '/login?next=' + encodeURIComponent(location.pathname);
+                    }).catch(function(){
+                        window.location.href = '/login?next=' + encodeURIComponent(location.pathname);
+                    });
+                }
+                return res;
+            });
+        };
+    })();
+    </script>
+
 </body>
 </html>

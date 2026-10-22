@@ -39,6 +39,19 @@ db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
+@login_manager.unauthorized_handler
+def unauthorized():
+    login_url = url_for('login', next=request.referrer or request.path)
+    if request.path.startswith('/api/') or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'success': False,
+            'error': 'login_required',
+            'login_required': True,
+            'login_url': login_url
+        }), 401
+    return redirect(login_url)
+
+
 followers = db.Table('followers', db.Column('follower_id', db.Integer, db.ForeignKey('user.id')), db.Column('followed_id', db.Integer, db.ForeignKey('user.id')))
 likes = db.Table('likes', db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True), db.Column('video_id', db.Integer, db.ForeignKey('video.id'), primary_key=True))
 saves = db.Table('saves', db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True), db.Column('video_id', db.Integer, db.ForeignKey('video.id'), primary_key=True))
@@ -423,9 +436,29 @@ def group_info(group_id):
 @login_required
 def join_group(code):
     group = ChatGroup.query.filter_by(invite_code=code).first()
-    if not group: return "الرابط غير صالح أو المجموعة غير موجودة", 404
-    
+    if not group: return render_template('join_preview.html', group=None, code=code), 404
     if current_user in group.members:
+        return redirect(url_for('chat_group', group_id=group.id))
+    # صفحة المعاينة
+    return render_template('join_preview.html', group=group, code=code)
+
+@app.route('/join_group/<string:code>/confirm', methods=['POST'])
+@login_required
+def join_group_confirm(code):
+    group = ChatGroup.query.filter_by(invite_code=code).first()
+    if not group: return "الرابط غير صالح", 404
+    if current_user in group.members:
+        return redirect(url_for('chat_group', group_id=group.id))
+    if group.join_approval:
+        existing_req = GroupJoinRequest.query.filter_by(group_id=group.id, user_id=current_user.id).first()
+        if not existing_req:
+            req = GroupJoinRequest(group_id=group.id, user_id=current_user.id)
+            db.session.add(req)
+            db.session.commit()
+        return render_template('join_request_sent.html', group=group)
+    else:
+        group.members.append(current_user)
+        db.session.commit()
         return redirect(url_for('chat_group', group_id=group.id))
         
     if group.join_approval:
@@ -750,11 +783,18 @@ def register():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if current_user.is_authenticated: return redirect(url_for('index'))
+    if current_user.is_authenticated:
+        nxt = request.args.get('next') or request.form.get('next')
+        if nxt and nxt.startswith('/'): return redirect(nxt)
+        return redirect(url_for('index'))
     if request.method == 'POST':
         user = User.query.filter_by(username=request.form.get('username', '').strip()).first()
-        if user and user.check_password(request.form.get('password', '')): login_user(user); return redirect(url_for('index'))
-        flash('اسم المستخدم أو كلمة المرور خاطئة'); return redirect(url_for('login'))
+        if user and user.check_password(request.form.get('password', '')):
+            login_user(user)
+            nxt = request.args.get('next') or request.form.get('next')
+            if nxt and nxt.startswith('/'): return redirect(nxt)
+            return redirect(url_for('index'))
+        flash('اسم المستخدم أو كلمة المرور خاطئة'); return redirect(url_for('login', next=request.args.get('next', '')))
     return render_template('login.html')
 
 @app.route('/logout')

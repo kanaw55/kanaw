@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if group %}انضمام إلى {{ group.name }}{% else %}رابط غير صالح{% endif %}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        *{box-sizing:border-box}
+        body{font-family:sans-serif;background:#111;color:#fff;margin:0;min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:20px}
+        .card{background:#1a1a1a;border-radius:20px;padding:30px 25px;max-width:420px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,0.5)}
+        .group-pic{width:110px;height:110px;border-radius:50%;background:linear-gradient(135deg,#fe2c55,#ff9800);margin:0 auto 20px;display:flex;align-items:center;justify-content:center;font-size:48px;overflow:hidden;border:3px solid #333}
+        .group-pic img{width:100%;height:100%;object-fit:cover}
+        .group-name{font-size:22px;font-weight:bold;margin:0 0 10px}
+        .group-desc{color:#aaa;font-size:14px;margin-bottom:15px;line-height:1.5}
+        .group-meta{display:flex;justify-content:center;gap:20px;color:#888;font-size:13px;margin-bottom:25px}
+        .group-meta span{display:flex;align-items:center;gap:6px}
+        .actions{display:flex;flex-direction:column;gap:10px}
+        .btn{width:100%;padding:15px;border:none;border-radius:12px;font-size:15px;font-weight:bold;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none}
+        .btn-join{background:#fe2c55;color:#fff}
+        .btn-cancel{background:#333;color:#fff}
+        .already{background:#1a3a1a;color:#4caf50;padding:12px;border-radius:10px;margin-bottom:15px;font-size:14px}
+        .invalid{color:#dc3545;font-size:48px;margin-bottom:15px}
+    </style>
+</head>
+<body>
+    <div class="card">
+        {% if group %}
+            <div class="group-pic">
+                {% if group.group_pic %}<img src="{{ group.group_pic }}" onerror="this.parentNode.innerHTML='<i class=&quot;fa-solid fa-users&quot;></i>';">
+                {% else %}<i class="fa-solid fa-users"></i>{% endif %}
+            </div>
+            <h2 class="group-name">{{ group.name }}</h2>
+            {% if group.description %}<p class="group-desc">{{ group.description }}</p>{% endif %}
+            <div class="group-meta">
+                <span><i class="fa-solid fa-user-group"></i> {{ group.members|length }} عضو</span>
+                {% if group.join_approval %}<span><i class="fa-solid fa-lock"></i> بموافقة</span>{% endif %}
+            </div>
+            {% if current_user in group.members %}
+                <div class="already"><i class="fa-solid fa-check-circle"></i> أنت عضو بالفعل</div>
+                <a href="/chat_group/{{ group.id }}" class="btn btn-join">فتح المجموعة</a>
+            {% elif group.join_approval %}
+                <form method="POST" action="/join_group/{{ code }}/confirm" class="actions">
+                    <button type="submit" class="btn btn-join"><i class="fa-solid fa-paper-plane"></i> إرسال طلب الانضمام</button>
+                    <a href="/inbox" class="btn btn-cancel">إلغاء</a>
+                </form>
+            {% else %}
+                <form method="POST" action="/join_group/{{ code }}/confirm" class="actions">
+                    <button type="submit" class="btn btn-join"><i class="fa-solid fa-right-to-bracket"></i> انضمام للمجموعة</button>
+                    <a href="/inbox" class="btn btn-cancel">إلغاء</a>
+                </form>
+            {% endif %}
+        {% else %}
+            <div class="invalid"><i class="fa-solid fa-link-slash"></i></div>
+            <h2 class="group-name">رابط غير صالح</h2>
+            <p class="group-desc">لم نتمكن من العثور على مجموعة بهذا الرابط.</p>
+            <a href="/" class="btn btn-cancel">العودة للرئيسية</a>
+        {% endif %}
+    </div>
+</body>
+</html>

@@ -36,6 +36,7 @@
         </div>
         {% with messages = get_flashed_messages() %}{% if messages %}{% for message in messages %}<div class="msg">{{ message }}</div>{% endfor %}{% endif %}{% endwith %}
         <form method="POST">
+        {% if request.args.get("next") %}<input type="hidden" name="next" value="{{ request.args.get("next") }}">{% endif %}
             <div class="input-group">
                 <input type="text" name="username" placeholder="اسم المستخدم" required>
                 <i class="fa-solid fa-user"></i>

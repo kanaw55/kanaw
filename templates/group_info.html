@@ -115,9 +115,19 @@
 
     <div class="section">
         <div class="section-title">رابط الدعوة</div>
-        <div class="copy-box">
-            <input type="text" id="inviteLink" value="{{ request.host_url }}join_group/{{ group.invite_code }}" readonly>
-            <button class="copy-btn" onclick="copyLink()">نسخ</button>
+        <div class="copy-box" style="display:flex;flex-direction:column;gap:8px;padding:8px;background:none;border:none;">
+            <a href="/join_group/{{ group.invite_code }}" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;background:#007bff;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;font-size:14px;">
+                <i class="fa-solid fa-link"></i> فتح رابط الدعوة
+            </a>
+            <div style="display:flex;gap:8px;">
+                <button onclick="copyLink()" style="flex:1;padding:10px;background:#333;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:bold;font-size:13px;">
+                    <i class="fa-solid fa-copy"></i> نسخ
+                </button>
+                <button onclick="shareInviteViaChat()" style="flex:1;padding:10px;background:#28a745;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:bold;font-size:13px;">
+                    <i class="fa-solid fa-share"></i> مشاركة
+                </button>
+            </div>
+            <input type="text" id="inviteLink" value="{{ request.host_url }}join_group/{{ group.invite_code }}" readonly style="padding:8px;background:#222;border:1px solid #333;border-radius:6px;color:#888;font-size:11px;text-align:center;direction:ltr;">
         </div>
     </div>
 
@@ -198,6 +208,20 @@
         function closePermModal() { document.getElementById('permBackdrop').classList.remove('active'); document.getElementById('permModal').classList.remove('active'); }
         function openAddModal() { document.getElementById('addMemberBackdrop').classList.add('active'); document.getElementById('addMemberModal').classList.add('active'); }
         function closeAddModal() { document.getElementById('addMemberBackdrop').classList.remove('active'); document.getElementById('addMemberModal').classList.remove('active'); }
-    </script>
+    
+        async function shareInviteViaChat() {
+            const link = document.getElementById("inviteLink").value;
+            try {
+                if (navigator.share) {
+                    await navigator.share({ title: 'انضم لمجموعة {{ group.name }}', url: link });
+                    return;
+                }
+            } catch(e) {}
+            // fallback: نسخ + فتح inbox
+            navigator.clipboard.writeText(link);
+            alert("تم نسخ الرابط! افتح المحادثة والصقه.");
+        }
+
+</script>
 </body>
 </html>
