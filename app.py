@@ -242,9 +242,10 @@ def inbox():
         users = User.query.filter(User.id.in_(user_ids)).all()
         groups = current_user.chat_groups
         stories = Story.query.filter(Story.created_at >= datetime.utcnow() - timedelta(days=1)).order_by(Story.created_at.desc()).all()
-        return render_template('inbox.html', users=users, groups=groups, stories=stories)
+        stories_json = [{'url': s.media_url, 'user': s.user.username, 'pic': s.user.profile_pic or '', 'time': 'الآن'} for s in stories if s.user]
+        return render_template('inbox.html', users=users, groups=groups, stories=stories, stories_json=stories_json)
     except:
-        return render_template('inbox.html', users=[], groups=[], stories=[])
+        return render_template('inbox.html', users=[], groups=[], stories=[], stories_json=[])
 
 
 

@@ -49,7 +49,7 @@
             <a href="/settings" class="settings-btn"><i class="fa-solid fa-gear"></i></a>
         {% endif %}
         <div class="avatar-container">
-            {% if user.profile_pic %}<img src="{{ user.profile_pic }}">{% else %}👤{% endif %}
+            {% if user.profile_pic %}<img src="{{ user.profile_pic }}" onerror="this.parentNode.innerHTML='{{ user.username[0]|upper }}';">{% else %}{{ user.username[0]|upper }}{% endif %}
         </div>
         <div class="username-title">@{{ user.username }}</div>
         <div class="bio-text">{{ user.bio }}</div>

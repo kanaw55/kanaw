@@ -1,72 +1,114 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>الرسائل - Kanaw</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { font-family: sans-serif; background: #111; color: #fff; margin: 0; padding-bottom: 60px; }
-        .header { padding: 15px 20px; font-size: 20px; font-weight: bold; display: flex; justify-content: space-between; border-bottom: 1px solid #222; }
-        .stories { display: flex; overflow-x: auto; padding: 15px; gap: 15px; border-bottom: 1px solid #222; }
-        .story { width: 65px; height: 65px; border-radius: 50%; border: 3px solid #fe2c55; padding: 2px; flex-shrink: 0; }
-        .story img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
-        .chat-item { display: flex; align-items: center; gap: 15px; padding: 12px 20px; text-decoration: none; color: white; border-bottom: 1px solid #222; }
-        .avatar { width: 50px; height: 50px; border-radius: 50%; background: #333; display: flex; justify-content: center; align-items: center; font-size: 24px; overflow: hidden; }
-        .avatar img { width: 100%; height: 100%; object-fit: cover; }
-        .chat-info { flex: 1; }
-        .chat-name { font-weight: bold; margin-bottom: 3px; }
-        .chat-msg { font-size: 12px; color: #888; }
-        /* زر إنشاء مجموعة عائم */
-        .fab { position: fixed; bottom: 80px; right: 20px; width: 60px; height: 60px; border-radius: 50%; background: #fe2c55; color: white; border: none; font-size: 24px; box-shadow: 0 4px 15px rgba(254,44,85,0.5); cursor: pointer; z-index: 100; display: flex; justify-content: center; align-items: center; }
-        .bottom-nav { position: fixed; bottom: 0; width: 100%; height: 60px; background: #000; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #222; }
-        .bottom-nav a { color: #888; text-decoration: none; font-size: 12px; display: flex; flex-direction: column; align-items: center; }
-        .bottom-nav a.active { color: #fff; }
-        /* نافذة إنشاء مجموعة */
-        #createGroupModal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; }
-        .modal-content { position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); background:#222; width:90%; max-width:400px; padding:20px; border-radius:15px; text-align:center; }
-        .modal-content input { width:100%; padding:12px; margin-bottom:20px; border-radius:8px; border:none; background:#333; color:white; box-sizing:border-box; text-align:center; }
-        .modal-actions { display:flex; gap:10px; }
-        .modal-actions button { flex:1; padding:12px; border-radius:8px; border:none; font-weight:bold; cursor:pointer; }
-        .btn-save { background:#fe2c55; color:white; }
-        .btn-cancel { background:#444; color:white; }
+        *{box-sizing:border-box}
+        body{font-family:sans-serif;background:#111;color:#fff;margin:0;padding-bottom:60px}
+        .header{padding:15px 20px;font-size:20px;font-weight:bold;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #222}
+        .header a{color:#fff}
+        .tabs{display:flex;border-bottom:1px solid #222;position:sticky;top:0;background:#111;z-index:10}
+        .tab{flex:1;padding:14px 8px;text-align:center;color:#888;cursor:pointer;font-weight:bold;font-size:13px;border-bottom:2px solid transparent}
+        .tab.active{color:#fe2c55;border-bottom-color:#fe2c55}
+        .tab-content{display:none}
+        .tab-content.active{display:block}
+        .stories{display:flex;overflow-x:auto;padding:15px;gap:15px}
+        .story-item{display:flex;flex-direction:column;align-items:center;cursor:pointer;flex-shrink:0}
+        .story-ring{width:70px;height:70px;border-radius:50%;padding:3px;background:linear-gradient(45deg,#fe2c55,#ff9800,#fe2c55)}
+        .story-img-wrap{width:100%;height:100%;border-radius:50%;background:#111;display:flex;justify-content:center;align-items:center;overflow:hidden;font-size:28px;color:#888;font-weight:bold}
+        .story-img-wrap img{width:100%;height:100%;object-fit:cover}
+        .story-name{font-size:11px;color:#fff;margin-top:5px;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .chat-item{display:flex;align-items:center;gap:15px;padding:12px 20px;text-decoration:none;color:white;border-bottom:1px solid #222}
+        .avatar{width:50px;height:50px;border-radius:50%;background:#333;display:flex;justify-content:center;align-items:center;font-size:22px;overflow:hidden;flex-shrink:0;font-weight:bold}
+        .avatar img{width:100%;height:100%;object-fit:cover}
+        .chat-info{flex:1;min-width:0}
+        .chat-name{font-weight:bold;margin-bottom:3px}
+        .chat-msg{font-size:12px;color:#888}
+        .empty-state{text-align:center;color:#666;padding:40px 20px;font-size:14px}
+        .fab{position:fixed;bottom:80px;left:20px;width:60px;height:60px;border-radius:50%;background:#fe2c55;color:white;border:none;font-size:24px;box-shadow:0 4px 15px rgba(254,44,85,0.5);cursor:pointer;z-index:100;display:flex;justify-content:center;align-items:center}
+        .bottom-nav{position:fixed;bottom:0;width:100%;height:60px;background:#000;display:flex;justify-content:space-around;align-items:center;border-top:1px solid #222;z-index:100}
+        .bottom-nav a{color:#888;text-decoration:none;font-size:12px;display:flex;flex-direction:column;align-items:center;gap:3px}
+        .bottom-nav a.active{color:#fff}
+        #createGroupModal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:1000}
+        .modal-content{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#222;width:90%;max-width:400px;padding:20px;border-radius:15px;text-align:center}
+        .modal-content input{width:100%;padding:12px;margin-bottom:20px;border-radius:8px;border:none;background:#333;color:white;text-align:center}
+        .modal-actions{display:flex;gap:10px}
+        .modal-actions button{flex:1;padding:12px;border-radius:8px;border:none;font-weight:bold;cursor:pointer}
+        .btn-save{background:#fe2c55;color:white}
+        .btn-cancel{background:#444;color:white}
+        .story-viewer{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:#000;z-index:99999;flex-direction:column}
+        .story-viewer.active{display:flex}
+        .story-progress-bar{display:flex;gap:4px;padding:12px 15px}
+        .story-progress-track{flex:1;height:3px;background:rgba(255,255,255,0.3);border-radius:2px;overflow:hidden}
+        .story-progress-fill{height:100%;background:#fff;width:0%}
+        .story-header{display:flex;align-items:center;gap:10px;padding:0 15px 10px;color:#fff}
+        .story-header .avatar-s{width:36px;height:36px;border-radius:50%;background:#333;display:flex;align-items:center;justify-content:center;font-size:16px;overflow:hidden;font-weight:bold}
+        .story-header .avatar-s img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+        .story-header .name{font-weight:bold;font-size:14px}
+        .story-header .time{font-size:11px;color:#aaa}
+        .story-close{margin-right:auto;background:none;border:none;color:#fff;font-size:24px;cursor:pointer}
+        .story-image-wrap{flex:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+        .story-image-wrap img{max-width:100%;max-height:100%;object-fit:contain}
+        .story-nav{position:absolute;top:0;bottom:0;width:50%;cursor:pointer;z-index:5}
+        .story-nav.left{left:0}
+        .story-nav.right{right:0}
     </style>
 </head>
 <body>
     <div class="header">
-        <a href="/" style="color:white;"><i class="fa-solid fa-arrow-right"></i></a>
+        <a href="/"><i class="fa-solid fa-arrow-right"></i></a>
         <span>الرسائل</span>
         <div></div>
     </div>
-
-    <div class="stories">
-        {% for story in stories %}
-        <div class="story"><img src="{{ story.media_url }}"></div>
-        {% endfor %}
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('chats')" id="tab-chats">💬 المحادثات</div>
+        <div class="tab" onclick="switchTab('groups')" id="tab-groups">👥 المجموعات</div>
+        <div class="tab" onclick="switchTab('stories')" id="tab-stories">📸 الستوري</div>
     </div>
-
-    {% for group in groups %}
-    <a href="/chat_group/{{ group.id }}" class="chat-item">
-        <div class="avatar" style="background:#fe2c55;"><i class="fa-solid fa-users"></i></div>
-        <div class="chat-info">
-            <div class="chat-name">{{ group.name }}</div>
-            <div class="chat-msg">{{ group.members|length }} عضو</div>
+    <div class="tab-content active" id="content-chats">
+        {% if users %}
+            {% for user in users %}
+            <a href="/chat/{{ user.username }}" class="chat-item">
+                <div class="avatar">
+                    {% if user.profile_pic %}<img src="{{ user.profile_pic }}" onerror="this.parentNode.innerHTML='{{ user.username[0]|upper }}';">
+                    {% else %}{{ user.username[0]|upper }}{% endif %}
+                </div>
+                <div class="chat-info"><div class="chat-name">@{{ user.username }}</div></div>
+            </a>
+            {% endfor %}
+        {% else %}<div class="empty-state">لا توجد محادثات بعد</div>{% endif %}
+    </div>
+    <div class="tab-content" id="content-groups">
+        {% if groups %}
+            {% for group in groups %}
+            <a href="/chat_group/{{ group.id }}" class="chat-item">
+                <div class="avatar" style="background:#fe2c55;">
+                    {% if group.group_pic %}<img src="{{ group.group_pic }}" onerror="this.parentNode.innerHTML='<i class=&quot;fa-solid fa-users&quot;></i>';">
+                    {% else %}<i class="fa-solid fa-users"></i>{% endif %}
+                </div>
+                <div class="chat-info"><div class="chat-name">{{ group.name }}</div><div class="chat-msg">{{ group.members|length }} عضو</div></div>
+            </a>
+            {% endfor %}
+        {% else %}<div class="empty-state">لا توجد مجموعات بعد</div>{% endif %}
+    </div>
+    <div class="tab-content" id="content-stories">
+        {% if stories_json and stories_json|length > 0 %}
+        <div class="stories">
+            {% for s in stories_json %}
+            <div class="story-item" onclick='openStories({{ stories_json|tojson }}, {{ loop.index0 }})'>
+                <div class="story-ring"><div class="story-img-wrap">
+                    {% if s.pic %}<img src="{{ s.pic }}" onerror="this.parentNode.innerHTML='👤';">{% else %}👤{% endif %}
+                </div></div>
+                <div class="story-name">@{{ s.user }}</div>
+            </div>
+            {% endfor %}
         </div>
-    </a>
-    {% endfor %}
-
-    {% for user in users %}
-    <a href="/chat/{{ user.username }}" class="chat-item">
-        <div class="avatar">{% if user.profile_pic %}<img src="{{ user.profile_pic }}">{% else %}👤{% endif %}</div>
-        <div class="chat-info">
-            <div class="chat-name">@{{ user.username }}</div>
-        </div>
-    </a>
-    {% endfor %}
-
-    <!-- زر إنشاء مجموعة -->
+        {% else %}<div class="empty-state">لا توجد ستوري حالياً (تختفي بعد 24 ساعة)</div>{% endif %}
+    </div>
     <button class="fab" onclick="document.getElementById('createGroupModal').style.display='block'"><i class="fa-solid fa-users"></i></button>
-
-    <!-- نافذة الإنشاء -->
     <div id="createGroupModal">
         <div class="modal-content">
             <h3>إنشاء مجموعة جديدة</h3>
@@ -77,40 +119,79 @@
             </div>
         </div>
     </div>
-
     <div class="bottom-nav">
         <a href="/"><i class="fa-solid fa-house"></i> الرئيسية</a>
         <a href="/trending"><i class="fa-solid fa-fire"></i> الترند</a>
         <a href="/inbox" class="active"><i class="fa-solid fa-envelope"></i> الرسائل</a>
         <a href="/profile/{{ current_user.username }}"><i class="fa-solid fa-user"></i> حسابي</a>
     </div>
-
+    <div id="storyViewer" class="story-viewer">
+        <div class="story-progress-bar" id="storyProgressBar"></div>
+        <div class="story-header">
+            <div class="avatar-s" id="storyAvatar">👤</div>
+            <div><div class="name" id="storyUsername">@user</div><div class="time" id="storyTime">الآن</div></div>
+            <button class="story-close" onclick="closeStories()">✕</button>
+        </div>
+        <div class="story-image-wrap">
+            <img id="storyImage" src="">
+            <div class="story-nav left" onclick="storyPrev()"></div>
+            <div class="story-nav right" onclick="storyNext()"></div>
+        </div>
+    </div>
     <script>
-        async function submitCreateGroup() {
-            const name = document.getElementById('groupNameInput').value.trim();
-            if (!name) return alert('الرجاء إدخال اسم المجموعة');
-            
-            const btn = event.target;
-            btn.disabled = true; btn.innerText = 'جاري الإنشاء...';
-            
-            try {
-                const res = await fetch('/api/create_group', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({name: name})
-                });
-                const data = await res.json();
-                if (data.success) {
-                    window.location.href = '/chat_group/' + data.group_id;
-                } else {
-                    alert('فشل إنشاء المجموعة');
-                    btn.disabled = false; btn.innerText = 'إنشاء';
-                }
-            } catch (e) {
-                alert('خطأ في الاتصال');
-                btn.disabled = false; btn.innerText = 'إنشاء';
-            }
+        function switchTab(name){
+            document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+            document.getElementById('tab-'+name).classList.add('active');
+            document.getElementById('content-'+name).classList.add('active');
         }
+        async function submitCreateGroup(){
+            const name=document.getElementById('groupNameInput').value.trim();
+            if(!name)return alert('الرجاء إدخال اسم المجموعة');
+            const btn=event.target; btn.disabled=true; btn.innerText='جاري الإنشاء...';
+            try{
+                const res=await fetch('/api/create_group',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name})});
+                const data=await res.json();
+                if(data.success){window.location.href='/chat_group/'+data.group_id;}
+                else{alert('فشل');btn.disabled=false;btn.innerText='إنشاء';}
+            }catch(e){alert('خطأ');btn.disabled=false;btn.innerText='إنشاء';}
+        }
+        var __stories=[],__storyIdx=0,__storyTimer=null;
+        function openStories(stories,startIdx){
+            if(!stories||stories.length===0)return;
+            __stories=stories;__storyIdx=startIdx||0;
+            document.getElementById('storyViewer').classList.add('active');
+            showStory(__storyIdx);
+        }
+        function showStory(idx){
+            clearTimeout(__storyTimer);
+            if(idx<0||idx>=__stories.length){closeStories();return;}
+            __storyIdx=idx;var s=__stories[idx];
+            var pb=document.getElementById('storyProgressBar');pb.innerHTML='';
+            __stories.forEach(function(_,i){
+                var track=document.createElement('div');track.className='story-progress-track';
+                var fill=document.createElement('div');fill.className='story-progress-fill';
+                if(i<idx)fill.style.width='100%';
+                track.appendChild(fill);pb.appendChild(track);
+            });
+            document.getElementById('storyUsername').textContent='@'+(s.user||'user');
+            document.getElementById('storyTime').textContent=s.time||'الآن';
+            var av=document.getElementById('storyAvatar');
+            if(s.pic)av.innerHTML='<img src="'+s.pic+'">';else av.textContent='👤';
+            document.getElementById('storyImage').src=s.url;
+            var fill=pb.children[idx].querySelector('.story-progress-fill');
+            var start=Date.now();
+            function tick(){
+                var pct=Math.min(100,(Date.now()-start)/5000*100);
+                fill.style.width=pct+'%';
+                if(pct<100)__storyTimer=setTimeout(tick,50);
+                else showStory(idx+1);
+            }
+            tick();
+        }
+        function storyPrev(){clearTimeout(__storyTimer);showStory(__storyIdx-1);}
+        function storyNext(){clearTimeout(__storyTimer);showStory(__storyIdx+1);}
+        function closeStories(){clearTimeout(__storyTimer);document.getElementById('storyViewer').classList.remove('active');}
     </script>
 </body>
 </html>

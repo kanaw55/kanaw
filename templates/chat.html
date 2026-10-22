@@ -85,7 +85,81 @@
         .image-btn { background: #333; color: #fff; }
         .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 10px 20px; border-radius: 20px; z-index: 9999; font-size: 14px; box-shadow: 0 3px 12px rgba(0,0,0,0.5); }
 
-    </style>
+    
+        /* قائمة الرسالة - تحسينات */
+        .message-wrapper { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+        .msg-more-btn {
+            display: none;
+            position: absolute;
+            top: 4px;
+            padding: 2px 6px;
+            background: rgba(0,0,0,0.5);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            cursor: pointer;
+            z-index: 5;
+        }
+        .message-wrapper { position: relative; }
+        .sent-wrapper .msg-more-btn { left: 4px; }
+        .received-wrapper .msg-more-btn { right: 4px; }
+        .message-wrapper:hover .msg-more-btn { display: block; }
+        @media (hover: none) { .message-wrapper:active .msg-more-btn { display: block; } }
+        
+        /* رفع الملفات - معاينة */
+        .upload-preview {
+            position: relative;
+            max-width: 250px;
+            padding: 8px;
+            background: rgba(0,123,255,0.15);
+            border-radius: 10px;
+            margin: 6px 0;
+        }
+        .upload-preview img, .upload-preview video {
+            max-width: 100%;
+            border-radius: 8px;
+            display: block;
+        }
+        .upload-preview .progress-track {
+            height: 4px;
+            background: #333;
+            border-radius: 2px;
+            margin-top: 6px;
+            overflow: hidden;
+        }
+        .upload-preview .progress-fill {
+            height: 100%;
+            background: #fe2c55;
+            width: 0%;
+            transition: width 0.2s;
+        }
+        .upload-preview .progress-text {
+            font-size: 11px;
+            color: #aaa;
+            margin-top: 4px;
+            text-align: center;
+        }
+
+    
+        .story-viewer{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:#000;z-index:99999;flex-direction:column}
+        .story-viewer.active{display:flex}
+        .story-progress-bar{display:flex;gap:4px;padding:12px 15px}
+        .story-progress-track{flex:1;height:3px;background:rgba(255,255,255,0.3);border-radius:2px;overflow:hidden}
+        .story-progress-fill{height:100%;background:#fff;width:0%}
+        .story-header{display:flex;align-items:center;gap:10px;padding:0 15px 10px;color:#fff}
+        .story-header .avatar-s{width:36px;height:36px;border-radius:50%;background:#333;display:flex;align-items:center;justify-content:center;font-size:16px;overflow:hidden;font-weight:bold}
+        .story-header .avatar-s img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+        .story-header .name{font-weight:bold;font-size:14px}
+        .story-header .time{font-size:11px;color:#aaa}
+        .story-close{margin-right:auto;background:none;border:none;color:#fff;font-size:24px;cursor:pointer}
+        .story-image-wrap{flex:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+        .story-image-wrap img{max-width:100%;max-height:100%;object-fit:contain}
+        .story-nav{position:absolute;top:0;bottom:0;width:50%;cursor:pointer;z-index:5}
+        .story-nav.left{left:0}
+        .story-nav.right{right:0}
+
+</style>
 </head>
 
 <body>
@@ -200,6 +274,7 @@
                     <span>{{ msg.timestamp.strftime('%H:%M') }}</span>
                 </div>
             </div>
+            <button class="msg-more-btn" onclick="event.stopPropagation(); openMsgMenu(event, this.closest('.message-wrapper'));">⋯</button>
         </div>
         {% endif %}
     {% endfor %}
@@ -259,9 +334,51 @@
         groupId: {{ group.id if group else 'null' }},
         otherUserId: {{ other_user.id if other_user else 'null' }}
     };
-    </script>
+    
+    var __stories=[],__storyIdx=0,__storyTimer=null;
+    function openStories(stories,startIdx){
+        if(!stories||stories.length===0)return;
+        __stories=stories;__storyIdx=startIdx||0;
+        document.getElementById('storyViewer').classList.add('active');
+        showStory(__storyIdx);
+    }
+    function showStory(idx){
+        clearTimeout(__storyTimer);
+        if(idx<0||idx>=__stories.length){closeStories();return;}
+        __storyIdx=idx;var s=__stories[idx];
+        var pb=document.getElementById('storyProgressBar');pb.innerHTML='';
+        __stories.forEach(function(_,i){
+            var track=document.createElement('div');track.className='story-progress-track';
+            var fill=document.createElement('div');fill.className='story-progress-fill';
+            if(i<idx)fill.style.width='100%';
+            track.appendChild(fill);pb.appendChild(track);
+        });
+        document.getElementById('storyUsername').textContent='@'+(s.user||'user');
+        document.getElementById('storyTime').textContent=s.time||'الآن';
+        var av=document.getElementById('storyAvatar');
+        if(s.pic)av.innerHTML='<img src="'+s.pic+'">';else av.textContent='👤';
+        document.getElementById('storyImage').src=s.url;
+        var fill=pb.children[idx].querySelector('.story-progress-fill');
+        var start=Date.now();
+        function tick(){
+            var pct=Math.min(100,(Date.now()-start)/5000*100);
+            fill.style.width=pct+'%';
+            if(pct<100)__storyTimer=setTimeout(tick,50);
+            else showStory(idx+1);
+        }
+        tick();
+    }
+    function storyPrev(){clearTimeout(__storyTimer);showStory(__storyIdx-1);}
+    function storyNext(){clearTimeout(__storyTimer);showStory(__storyIdx+1);}
+    function closeStories(){clearTimeout(__storyTimer);document.getElementById('storyViewer').classList.remove('active');}
+    function viewStory(url, username){openStories([{url:url,user:username,time:'الآن'}],0);}
+
+</script>
     <script>
     console.log("🟢 Clean Chat JS loaded");
+    document.addEventListener("contextmenu", function(e) {
+        if (e.target.closest(".message-wrapper")) e.preventDefault();
+    });
     function $(id) { return document.getElementById(id); }
     function toast(msg) {
         var t = document.createElement("div");
@@ -273,11 +390,7 @@
     function safeClick(id) { var el = $(id); if (el) el.click(); else alert("خطأ: " + id); }
     function openBgModal() { var m = $("bgModal"); if (m) m.classList.add("active"); }
     function closeBgModal() { var m = $("bgModal"); if (m) m.classList.remove("active"); }
-    function viewStory(url, username) {
-        var win = window.open();
-        win.document.write('<body style="margin:0;background:#000;display:flex;justify-content:center;align-items:center;height:100vh;"><img src="' + url + '" style="max-width:100%;max-height:100%;"><h2 style="position:absolute;top:20px;color:white;">@' + username + '</h2></body>');
-        win.document.close();
-    }
+    
     function openReplyMenu(e, msgId, username, content) {
         e.preventDefault();
         $("replyToId").value = msgId;
@@ -306,10 +419,20 @@
     document.addEventListener("touchstart", function(e) {
         var w = e.target.closest(".message-wrapper");
         if (!w) return;
-        longPressTimer = setTimeout(function() { openMsgMenu(e, w); }, 500);
+        if (e.target.closest("audio") || e.target.closest(".reply-preview") || e.target.closest(".msg-more-btn")) return;
+        var startX = e.touches[0].clientX;
+        var startY = e.touches[0].clientY;
+        longPressTimer = setTimeout(function() {
+            if (navigator.vibrate) { try { navigator.vibrate(30); } catch(err) {} }
+            var fakeEvent = { preventDefault: function(){}, stopPropagation: function(){}, touches: [{clientX: startX, clientY: startY}], clientX: startX, clientY: startY };
+            openMsgMenu(fakeEvent, w);
+        }, 450);
     }, { passive: true });
     document.addEventListener("touchend", function() { clearTimeout(longPressTimer); });
-    document.addEventListener("touchmove", function() { clearTimeout(longPressTimer); });
+    document.addEventListener("touchmove", function(e) {
+        if (!longPressTimer) return;
+        clearTimeout(longPressTimer);
+    });
     document.addEventListener("click", function(e) {
         if (Date.now() - __menuOpenedAt < 400) return;
         var menu = $("msgMenu"), picker = $("reactionPicker");
@@ -407,21 +530,57 @@
     }
     function sendImage(input) {
         if (!input.files || !input.files[0]) return;
-        var fd = new FormData(); fd.append("image", input.files[0]);
-        if (window.CHAT_CONFIG.groupId) fd.append("group_id", window.CHAT_CONFIG.groupId);
-        else fd.append("receiver_id", window.CHAT_CONFIG.otherUserId);
-        toast("📤 جاري الرفع...");
-        fetch("/api/chat/image", { method: "POST", body: fd }).then(function(r) { return r.json(); }).then(function(d) { if (d.success) location.reload(); else alert("فشل الرفع: " + (d.error || "")); });
+        uploadMedia(input.files[0], "image");
         input.value = "";
     }
     function sendVideo(input) {
         if (!input.files || !input.files[0]) return;
-        var fd = new FormData(); fd.append("video", input.files[0]);
+        uploadMedia(input.files[0], "video");
+        input.value = "";
+    }
+
+    function uploadMedia(file, type) {
+        var cb = document.getElementById("chatBox");
+        if (!cb) return;
+
+        // معاينة محلية فورية
+        var preview = document.createElement("div");
+        preview.className = "upload-preview";
+        var url = URL.createObjectURL(file);
+        if (type === "image") {
+            preview.innerHTML = '<img src="' + url + '"><div class="progress-track"><div class="progress-fill"></div></div><div class="progress-text">0%</div>';
+        } else {
+            preview.innerHTML = '<video src="' + url + '" controls></video><div class="progress-track"><div class="progress-fill"></div></div><div class="progress-text">0%</div>';
+        }
+        cb.appendChild(preview);
+        cb.scrollTop = cb.scrollHeight;
+
+        var fd = new FormData();
+        fd.append(type, file);
         if (window.CHAT_CONFIG.groupId) fd.append("group_id", window.CHAT_CONFIG.groupId);
         else fd.append("receiver_id", window.CHAT_CONFIG.otherUserId);
-        toast("📤 جاري رفع الفيديو...");
-        fetch("/api/chat/video", { method: "POST", body: fd }).then(function(r) { return r.json(); }).then(function(d) { if (d.success) location.reload(); else alert("فشل الرفع: " + (d.error || "")); });
-        input.value = "";
+
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/chat/" + type);
+        xhr.upload.onprogress = function(e) {
+            if (e.lengthComputable) {
+                var pct = Math.round(e.loaded / e.total * 100);
+                var fill = preview.querySelector(".progress-fill");
+                var text = preview.querySelector(".progress-text");
+                if (fill) fill.style.width = pct + "%";
+                if (text) text.textContent = pct + "%";
+            }
+        };
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                try { var d = JSON.parse(xhr.responseText); if (d.success) { preview.remove(); location.reload(); return; } } catch(e) {}
+                alert("فشل الرفع"); preview.remove();
+            } else {
+                alert("فشل الرفع (رمز " + xhr.status + ")"); preview.remove();
+            }
+        };
+        xhr.onerror = function() { alert("انقطع الاتصال"); preview.remove(); };
+        xhr.send(fd);
     }
     var mediaRecorder, audioChunks = [], isRecording = false;
     var micBtn = $("micBtn");
@@ -461,5 +620,20 @@
 
     <input type="file" id="imageInput" accept="image/*" style="display:none;" onchange="sendImage(this)">
     <input type="file" id="videoInput" accept="video/*" style="display:none;" onchange="sendVideo(this)">
+
+    <div id="storyViewer" class="story-viewer">
+        <div class="story-progress-bar" id="storyProgressBar"></div>
+        <div class="story-header">
+            <div class="avatar-s" id="storyAvatar">👤</div>
+            <div><div class="name" id="storyUsername">@user</div><div class="time" id="storyTime">الآن</div></div>
+            <button class="story-close" onclick="closeStories()">✕</button>
+        </div>
+        <div class="story-image-wrap">
+            <img id="storyImage" src="">
+            <div class="story-nav left" onclick="storyPrev()"></div>
+            <div class="story-nav right" onclick="storyNext()"></div>
+        </div>
+    </div>
+
 </body>
 </html>
