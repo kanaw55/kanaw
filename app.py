@@ -2332,3 +2332,36 @@ def upload_pexels_live():
     html += '<h2>العدد النهائي: ' + str(total) + '</h2>'
     html += '<a href="/" style="color:#fe2c55;">← الرئيسية</a></body></html>'
     return html
+
+@app.route('/admin/upload_test_base64')
+@login_required
+def upload_test_base64():
+    import base64
+    import tempfile
+    import os
+    
+    # فيديو MP4 صغير جداً (2 ثانية) مدمج في الكود
+    # هذا الفيديو عبارة عن شاشة سوداء مع صوت (لاختبار الرفع)
+    tiny_mp4_b64 = "AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAAu1tZGF0AAACrgYF//+q3EXpvebZSLeWLNgg2SPu73gyNjQgLSBjb3JlIDE2NCByMzEwOCAzMWUxOWY5IC0gSC4yNjQvTVBFRy00IEFWQyBjb2RlYyAtIENvcHlsZWZ0IDIwMDMtMjAyMyAtIGh0dHA6Ly93d3cudmlkZW9sYW4ub3JnL3gyNjQuaHRtbQAAABdncmV0YWdzAAAABkZpbG1lZAAAAAA="
+    
+    try:
+        # فك التشفير إلى ملف مؤقت
+        video_data = base64.b64decode(tiny_mp4_b64)
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp:
+            tmp.write(video_data)
+            tmp_path = tmp.name
+        
+        # رفع إلى Cloudinary
+        res = cloudinary.uploader.upload(tmp_path, resource_type="video", folder="test")
+        cloud_url = res['secure_url']
+        
+        # حفظ في قاعدة البيانات
+        v = Video(filename=cloud_url, caption="فيديو اختبار (base64) 🎬", user_id=current_user.id, views=100, likes_count=10)
+        db.session.add(v)
+        db.session.commit()
+        
+        os.remove(tmp_path)
+        
+        return f'<html dir="rtl"><body style="background:#111;color:#fff;padding:20px;font-family:sans-serif;"><h1>✅ نجح رفع الفيديو!</h1><p>الرابط: <a href="{cloud_url}" style="color:#00f2fe;">{cloud_url}</a></p><p>عدد الفيديوهات الآن: {Video.query.count()}</p><a href="/" style="color:#fe2c55;">← الرئيسية</a></body></html>'
+    except Exception as e:
+        return f'<html dir="rtl"><body style="background:#111;color:#fff;padding:20px;font-family:sans-serif;"><h1>❌ فشل الرفع</h1><p style="background:#3a1a1a;padding:10px;border-radius:5px;">{str(e)}</p></body></html>'
