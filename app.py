@@ -461,6 +461,22 @@ def kick_member(group_id, user_id):
             db.session.commit()
     return redirect(url_for('group_info', group_id=group_id))
 
+@app.route('/group/<int:group_id>/pin/<int:msg_id>', methods=['POST'])
+@login_required
+def pin_message(group_id, msg_id):
+    group = ChatGroup.query.get_or_404(group_id)
+    if current_user not in group.admins:
+        return "غير مصرح", 403
+    msg = Message.query.get_or_404(msg_id)
+    if msg.group_id == group.id:
+        if msg.is_pinned:
+            msg.is_pinned = False
+        else:
+            Message.query.filter_by(group_id=group.id).update({"is_pinned": False})
+            msg.is_pinned = True
+        db.session.commit()
+    return redirect(url_for('chat_group', group_id=group_id))
+
 @app.route('/chat_group/<int:group_id>', methods=['GET', 'POST'])
 @login_required
 def chat_group(group_id):
