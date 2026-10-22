@@ -2011,7 +2011,7 @@ def fetch_media_advanced():
                     'no_warnings': True,
                     'nocheckcertificate': True,
                     'impersonate': 'chrome',
-                    'noplaylist': True,}},  # تجاوز حماية يوتيوب الجديدة
+                    'noplaylist': True,  # تجاوز حماية يوتيوب الجديدة
                 }
                 
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
