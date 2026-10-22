@@ -2152,3 +2152,71 @@ def clean_duplicates_preview():
     html += '</body></html>'
     return html
 
+
+# ============================================================
+# بوت التحميل التلقائي (يتجاوز حظر تيك توك عبر API خارجي)
+# ============================================================
+import requests
+import threading
+
+def process_urls_in_background(urls, user_id, caption_prefix):
+    with app.app_context():
+        for url in urls:
+            if not url.strip(): continue
+            try:
+                # 1. استخراج رابط الفيديو المباشر لتيك توك
+                if 'tiktok.com' in url:
+                    api_url = f"https://www.tikwm.com/api/?url={url}"
+                    res = requests.get(api_url, timeout=15).json()
+                    if res.get('code') == 0:
+                        video_url = res['data']['play']
+                    else:
+                        continue # فشل استخراج الفيديو
+                else:
+                    # لم نتمكن من دعم روابط أخرى بعد
+                    continue
+                
+                # 2. رفع الفيديو إلى Cloudinary
+                upload_res = cloudinary.uploader.upload(video_url, resource_type="video", folder="bot_uploads")
+                cloud_url = upload_res['secure_url']
+                if '/video/upload/' in cloud_url:
+                    cloud_url = cloud_url.replace('/video/upload/', '/video/upload/q_auto,f_auto/')
+                
+                # 3. حفظ في قاعدة البيانات
+                v = Video(filename=cloud_url, caption=caption_prefix, user_id=user_id, views=0, likes_count=0)
+                db.session.add(v)
+                db.session.commit()
+                
+            except Exception as e:
+                print(f"فشل معالجة {url}: {e}")
+                continue
+
+@app.route('/admin/bot', methods=['GET', 'POST'])
+@login_required
+def auto_bot():
+    msg = ""
+    if request.method == 'POST':
+        urls = request.form.get('urls', '').split('\n')
+        caption = request.form.get('caption', 'فيديو من البوت')
+        if urls and urls[0].strip():
+            # تشغيل المعالجة في الخلفية حتى لا تنقطع الصفحة
+            thread = threading.Thread(target=process_urls_in_background, args=(urls, current_user.id, caption))
+            thread.start()
+            msg = '<div style="color:#28a745; background:#1a3a1a; padding:15px; border-radius:8px;">✅ تم بدء المعالجة في الخلفية! سيتم إضافة الفيديوهات للرئيسية فوراً.</div>'
+
+    return f'''<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>بوت السيرفر</title>
+    <style>body{{font-family:sans-serif;background:#111;color:#fff;padding:20px;max-width:600px;margin:0 auto}}
+    textarea{{width:100%;height:150px;padding:10px;margin:10px 0;border-radius:8px;border:none;background:#222;color:#fff;box-sizing:border-box}}
+    input{{width:100%;padding:12px;margin:10px 0;border-radius:8px;border:none;background:#222;color:#fff;box-sizing:border-box}}
+    button{{width:100%;padding:15px;background:#fe2c55;color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:bold;cursor:pointer}}</style>
+    </head><body>
+    <h1>🤖 بوت السيرفر التلقائي</h1>
+    <p style="color:#888;font-size:14px;">ضع روابط تيك توك (كل رابط في سطر). السيرفر سيتجاوز الحظر، يحمل الفيديو، ويرفعه لموقعك بسرعة.</p>
+    {msg}
+    <form method="POST">
+        <textarea name="urls" placeholder="https://vm.tiktok.com/ZSgPGCkS8/&#10;https://vm.tiktok.com/xxxxxx/" required></textarea>
+        <input type="text" name="caption" placeholder="وصف الفيديو" value="فيديو رهيب 🔥">
+        <button type="submit">🚀 بدء التحميل التلقائي</button>
+    </form>
+    </body></html>'''
+
