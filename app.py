@@ -1922,3 +1922,65 @@ def fetch_media():
                 result_msg = '<div style="color:#ff6b6b; background:#3a1a1a; padding:15px; border-radius:8px; margin-bottom:15px;">❌ فشل: ' + str(e) + '</div>'
     
     return '<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>سحب الفيديوهات</title><style>body{font-family:sans-serif;background:#111;color:#fff;padding:20px;max-width:600px;margin:0 auto}input{width:100%;padding:12px;margin:10px 0;border-radius:8px;border:none;background:#222;color:#fff;box-sizing:border-box}button{width:100%;padding:15px;background:#fe2c55;color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:bold;cursor:pointer}</style></head><body><h1>🪄 سحب فيديو من أي موقع</h1><p style="color:#888;font-size:14px;">ضع الرابط، والسيرفر سيحمّل الفيديو ويرفعه لـ Cloudinary.</p>' + result_msg + '<form method="POST"><input type="url" name="video_url" placeholder="https://www.tiktok.com/..." required><input type="text" name="caption" placeholder="وصف الفيديو" value="فيديو مميز"><button type="submit">⬇️ سحب ورفع</button></form></body></html>'
+
+# ============================================================
+# نظام استعادة الفيديوهات من Cloudinary
+# ============================================================
+@app.route('/admin/recover_videos', methods=['GET', 'POST'])
+@login_required
+def recover_videos():
+    if request.method == 'POST':
+        # حفظ الربط
+        video_url = request.form.get('video_url')
+        username = request.form.get('username')
+        caption = request.form.get('caption', 'فيديو مستعاد')
+        
+        user = User.query.filter_by(username=username).first()
+        if user and video_url:
+            v = Video(filename=video_url, caption=caption, user_id=user.id, views=100, likes_count=10)
+            db.session.add(v)
+            db.session.commit()
+            return redirect(url_for('recover_videos'))
+    
+    # جلب الصور والفيديوهات من Cloudinary (أول 100)
+    try:
+        resources = cloudinary.api.resources(type="upload", resource_type="video", max_results=100)
+        files = resources.get('resources', [])
+    except Exception as e:
+        files = []
+    
+    # جلب المستخدمين
+    users = User.query.all()
+    user_options = "".join([f'<option value="{u.username}">{u.username}</option>' for u in users])
+    
+    html = '''<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>استعادة الفيديوهات</title>
+    <style>
+    body{font-family:sans-serif;background:#111;color:#fff;padding:20px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:20px;margin-top:20px}
+    .card{background:#222;padding:10px;border-radius:8px}
+    video{width:100%;height:200px;object-fit:cover;border-radius:6px}
+    select,input{width:100%;padding:8px;margin:5px 0;border-radius:6px;border:none;background:#333;color:#fff}
+    button{width:100%;padding:10px;background:#28a745;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold}
+    </style></head><body>
+    <h1>🔍 استعادة الفيديوهات المفقودة</h1>
+    <p>لديك <strong>''' + str(len(files)) + '''</strong> فيديو في Cloudinary. قم بربط كل فيديو بالمستخدم الذي رفعه.</p>
+    <div class="grid">'''
+    
+    for f in files:
+        url = f.get('secure_url', '')
+        # تحسين الرابط
+        if '/video/upload/' in url:
+            url = url.replace('/video/upload/', '/video/upload/q_auto,f_auto/')
+        
+        html += '<div class="card">'
+        html += f'<video src="{url}" controls preload="none"></video>'
+        html += f'<form method="POST">'
+        html += f'<input type="hidden" name="video_url" value="{url}">'
+        html += f'<select name="username">{user_options}</select>'
+        html += f'<input type="text" name="caption" placeholder="وصف الفيديو" value="فيديو مستعاد">'
+        html += f'<button type="submit">ربط بالمستخدم</button>'
+        html += '</form></div>'
+        
+    html += '</div></body></html>'
+    return html
+
