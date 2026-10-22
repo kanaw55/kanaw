@@ -62,6 +62,29 @@
         .modal-actions button { flex: 1; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; }
         .btn-save { background: #fe2c55; color: white; }
         .btn-cancel { background: #444; color: white; }
+    
+        .date-separator { text-align: center; margin: 15px 0; position: relative; z-index: 1; }
+        .date-separator span { background: rgba(0,0,0,0.55); padding: 4px 14px; border-radius: 14px; font-size: 11px; color: #fff; }
+        .system-msg { text-align: center; padding: 6px 12px; background: rgba(255,255,255,0.08); border-radius: 12px; font-size: 12px; color: #bbb; margin: 4px auto; max-width: 85%; }
+        .msg-meta { font-size: 10px; color: rgba(255,255,255,0.6); text-align: left; margin-top: 3px; display: flex; justify-content: flex-end; align-items: center; gap: 5px; }
+        .sent .msg-meta { color: rgba(255,255,255,0.9); }
+        .msg-reaction { background: rgba(0,0,0,0.4); padding: 1px 8px; border-radius: 10px; font-size: 13px; }
+        .msg-menu { display: none; position: fixed; background: #2a2a2a; border-radius: 10px; box-shadow: 0 5px 25px rgba(0,0,0,0.7); z-index: 2000; min-width: 180px; overflow: hidden; }
+        .msg-menu.active { display: block; }
+        .msg-menu button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 16px; background: none; border: none; color: #fff; text-align: right; cursor: pointer; font-size: 14px; font-family: inherit; }
+        .msg-menu button:hover { background: #3a3a3a; }
+        .msg-menu button.danger { color: #ff6b6b; }
+        .reaction-picker { display: none; position: fixed; background: #2a2a2a; border-radius: 30px; padding: 8px 12px; box-shadow: 0 5px 25px rgba(0,0,0,0.7); z-index: 2001; }
+        .reaction-picker.active { display: flex; gap: 6px; }
+        .reaction-picker button { background: none; border: none; font-size: 24px; cursor: pointer; padding: 4px; transition: transform 0.15s; }
+        .reaction-picker button:hover { transform: scale(1.3); }
+        .scroll-btn { position: fixed; bottom: 90px; left: 15px; width: 45px; height: 45px; border-radius: 50%; background: #fe2c55; color: white; border: none; cursor: pointer; display: none; align-items: center; justify-content: center; box-shadow: 0 3px 12px rgba(0,0,0,0.5); z-index: 100; }
+        .scroll-btn.visible { display: flex; }
+        .reply-preview { cursor: pointer; }
+        .reply-preview:hover { opacity: 0.85; }
+        .image-btn { background: #333; color: #fff; }
+        .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 10px 20px; border-radius: 20px; z-index: 9999; font-size: 14px; box-shadow: 0 3px 12px rgba(0,0,0,0.5); }
+
     </style>
 </head>
 <body>
@@ -118,32 +141,50 @@
 
     <div class="chat-box" id="chatBox" {% if group and group.chat_bg %}style="background-image: url('{{ group.chat_bg }}');"{% endif %}>
         {% for msg in messages %}
-            {% if msg.message_type == 'system' %}
-            <div style="text-align:center;width:100%;padding:6px 12px;background:rgba(255,255,255,0.08);border-radius:12px;font-size:12px;color:#bbb;margin:4px auto;max-width:85%;">
-                {{ msg.content }}
-            </div>
-            {% else %}
-            <div class="message-wrapper {% if msg.sender_id == current_user.id %}sent-wrapper{% else %}received-wrapper{% endif %}">
-                {% if group and msg.sender_id != current_user.id %}
-                    <a href="/profile/{{ msg.sender.username }}" class="sender-name">@{{ msg.sender.username }}</a>
+        {% set curr_date = msg.timestamp.strftime('%Y-%m-%d') %}
+        {% if loop.first or messages[loop.index0 - 1].timestamp.strftime('%Y-%m-%d') != curr_date %}
+        <div class="date-separator"><span>{{ msg.timestamp.strftime('%d / %m / %Y') }}</span></div>
+        {% endif %}
+        {% if msg.message_type == 'system' %}
+        <div class="system-msg">{{ msg.content }}</div>
+        {% else %}
+        <div class="message-wrapper {% if msg.sender_id == current_user.id %}sent-wrapper{% else %}received-wrapper{% endif %}"
+             data-msg-id="{{ msg.id }}"
+             data-sender="{{ msg.sender.username }}"
+             data-sender-id="{{ msg.sender_id }}"
+             data-content="{{ msg.content|e }}"
+             data-type="{{ msg.message_type }}"
+             data-time="{{ msg.timestamp.strftime('%H:%M') }}"
+             data-can-edit="{{ 'true' if msg.sender_id == current_user.id and msg.message_type == 'text' else 'false' }}"
+             data-can-delete="{{ 'true' if msg.sender_id == current_user.id or (group and is_admin) else 'false' }}"
+             oncontextmenu="openMsgMenu(event, this); return false;">
+            {% if group and msg.sender_id != current_user.id %}
+            <a href="/profile/{{ msg.sender.username }}" class="sender-name">@{{ msg.sender.username }}</a>
+            {% endif %}
+            <div class="message {% if msg.sender_id == current_user.id %}sent{% else %}received{% endif %}">
+                {% if msg.reply_to %}
+                <div class="reply-preview" onclick="scrollToMsg({{ msg.reply_to.id }});" style="cursor:pointer;">
+                    <b>@{{ msg.reply_to.sender.username }}:</b>
+                    {% if msg.reply_to.message_type == 'audio' %}🎤 رسالة صوتية
+                    {% elif msg.reply_to.message_type == 'image' %}📷 صورة
+                    {% else %}{{ msg.reply_to.content[:60]|format_text|safe }}{% endif %}
+                </div>
                 {% endif %}
                 
-                <div class="message {% if msg.sender_id == current_user.id %}sent{% else %}received{% endif %}" 
-                     oncontextmenu="openReplyMenu(event, {{ msg.id }}, {{ msg.sender.username|tojson }}, {{ (msg.content[:30] if msg.message_type != 'audio' else '🎤 رسالة صوتية')|tojson }}); return false;">
-                    {% if msg.reply_to %}
-                    <div class="reply-preview">
-                        <b>@{{ msg.reply_to.sender.username }}:</b>
-                        {% if msg.reply_to.message_type == 'audio' %}🎤 رسالة صوتية{% else %}{{ msg.reply_to.content[:60]|format_text|safe }}{% endif %}
-                    </div>
-                    {% endif %}
-                    
-                    {% if msg.message_type == 'audio' %}
-                        <div class="audio-message"><i class="fa-solid fa-microphone"></i><audio src="{{ msg.content }}" controls></audio></div>
-                    {% else %}
-                        {{ msg.content|format_text|safe }}
-                    {% endif %}
+                {% if msg.message_type == 'image' %}
+                <img src="{{ msg.content }}" style="max-width:250px;width:100%;border-radius:8px;display:block;margin-bottom:5px;cursor:pointer;" onclick="window.open('{{ msg.content }}','_blank');">
+                {% elif msg.message_type == 'audio' %}
+                <div class="audio-message"><i class="fa-solid fa-microphone"></i><audio src="{{ msg.content }}" controls></audio></div>
+                {% else %}
+                {{ msg.content|format_text|safe }}
+                {% endif %}
+                
+                <div class="msg-meta">
+                    {% if msg.reaction %}<span class="msg-reaction">{{ msg.reaction }}</span>{% endif %}
+                    <span>{{ msg.timestamp.strftime('%H:%M') }}</span>
                 </div>
             </div>
+        </div>
         {% endif %}
     {% endfor %}
     </div>
@@ -157,6 +198,7 @@
         <input type="hidden" name="reply_to_id" id="replyToId" value="">
         <input type="text" name="content" id="messageInput" placeholder="اكتب رسالة..." required autocomplete="off">
         <button type="submit" class="send-btn" id="sendBtn"><i class="fa-solid fa-paper-plane"></i></button>
+        <button type="button" class="mic-btn image-btn" onclick="document.getElementById('imageInput').click()"><i class="fa-solid fa-image"></i></button>
         <button type="button" class="mic-btn" id="micBtn" onclick="toggleRecord()"><i class="fa-solid fa-microphone"></i></button>
     </form>
 
@@ -196,7 +238,46 @@
         // ===== عرض القصة =====
         function viewStory(url, username) {
             const win = window.open();
-            win.document.write('<body style="margin:0;background:#000;display:flex;justify-content:center;align-items:center;height:100vh;"><img src="' + url + '" style="max-width:100%;max-height:100%;"><h2 style="position:absolute;top:20px;color:white;font-family:sans-serif;">@' + username + '</h2></body>');
+            win.document.write('<body style="margin:0;background:#000;display:flex;justify-content:center;align-items:center;height:100vh;"><img src="' + url + '" style="max-width:100%;max-height:100%;"><h2 style="position:absolute;top:20px;color:white;font-family:sans-serif;">@' + username + '</h2>
+    <!-- قائمة الرسالة -->
+    <div id="msgMenu" class="msg-menu">
+        <button onclick="msgAction('reply')"><i class="fa-solid fa-reply"></i> رد</button>
+        <button onclick="msgAction('copy')"><i class="fa-solid fa-copy"></i> نسخ</button>
+        <button onclick="msgAction('forward')"><i class="fa-solid fa-share"></i> تحويل</button>
+        <button onclick="msgAction('react')"><i class="fa-solid fa-face-smile"></i> تفاعل</button>
+        <button onclick="msgAction('edit')" class="only-edit"><i class="fa-solid fa-pen"></i> تعديل</button>
+        <button onclick="msgAction('pin')" class="only-pin"><i class="fa-solid fa-thumbtack"></i> تثبيت</button>
+        <button onclick="msgAction('delete')" class="only-delete danger"><i class="fa-solid fa-trash"></i> حذف</button>
+    </div>
+
+    <!-- منتقي التفاعل -->
+    <div id="reactionPicker" class="reaction-picker">
+        <button onclick="sendReaction('👍')">👍</button>
+        <button onclick="sendReaction('❤️')">❤️</button>
+        <button onclick="sendReaction('😂')">😂</button>
+        <button onclick="sendReaction('😮')">😮</button>
+        <button onclick="sendReaction('😢')">😢</button>
+        <button onclick="sendReaction('🙏')">🙏</button>
+        <button onclick="sendReaction('🔥')">🔥</button>
+        <button onclick="sendReaction('👏')">👏</button>
+    </div>
+
+    <!-- نافذة التحويل -->
+    <div id="forwardModal" class="modal">
+        <div class="modal-content">
+            <h3>تحويل إلى</h3>
+            <div id="forwardList" style="max-height:300px;overflow-y:auto;margin-bottom:15px;"></div>
+            <button class="btn-cancel" onclick="closeForward()" style="width:100%;">إلغاء</button>
+        </div>
+    </div>
+
+    <!-- زر النزول للأسفل -->
+    <button id="scrollBtn" class="scroll-btn" onclick="scrollToBottom()"><i class="fa-solid fa-chevron-down"></i></button>
+
+    <!-- input صورة مخفي -->
+    <input type="file" id="imageInput" accept="image/*" style="display:none;" onchange="sendImage(this)">
+
+</body>');
         }
 
         // ===== الرد على رسالة =====
@@ -250,6 +331,205 @@
                 micBtn.innerHTML = '<i class="fa-solid fa-microphone"></i>';
             }
         }
+    
+
+        // ===== قائمة الرسالة (Long-press / Right-click) =====
+        let currentMsgEl = null, currentMsgData = null, longPressTimer = null;
+        
+        function openMsgMenu(e, el) {
+            e.preventDefault();
+            e.stopPropagation();
+            currentMsgEl = el;
+            currentMsgData = {
+                id: el.dataset.msgId,
+                sender: el.dataset.sender,
+                content: el.dataset.content,
+                type: el.dataset.type,
+                canEdit: el.dataset.canEdit === 'true',
+                canDelete: el.dataset.canDelete === 'true'
+            };
+            const menu = document.getElementById('msgMenu');
+            menu.querySelector('.only-edit').style.display = currentMsgData.canEdit ? 'flex' : 'none';
+            menu.querySelector('.only-delete').style.display = currentMsgData.canDelete ? 'flex' : 'none';
+            menu.querySelector('.only-pin').style.display = (currentMsgData.type !== 'system') ? 'flex' : 'none';
+            const x = e.touches ? e.touches[0].clientX : e.clientX;
+            const y = e.touches ? e.touches[0].clientY : e.clientY;
+            menu.style.left = Math.min(x, window.innerWidth - 200) + 'px';
+            menu.style.top = Math.min(y, window.innerHeight - 320) + 'px';
+            menu.classList.add('active');
+        }
+        
+        // Long-press للموبايل
+        document.addEventListener('touchstart', function(e) {
+            const wrapper = e.target.closest('.message-wrapper');
+            if (!wrapper) return;
+            longPressTimer = setTimeout(() => {
+                openMsgMenu(e, wrapper);
+            }, 500);
+        }, {passive: true});
+        
+        document.addEventListener('touchend', function() { clearTimeout(longPressTimer); });
+        document.addEventListener('touchmove', function() { clearTimeout(longPressTimer); });
+        
+        // إغلاق عند النقر خارجاً
+        document.addEventListener('click', function(e) {
+            const menu = document.getElementById('msgMenu');
+            const picker = document.getElementById('reactionPicker');
+            if (!menu.contains(e.target) && !picker.contains(e.target)) {
+                menu.classList.remove('active');
+                picker.classList.remove('active');
+            }
+        });
+
+        function toast(msg) {
+            const t = document.createElement('div');
+            t.className = 'toast';
+            t.textContent = msg;
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), 2200);
+        }
+
+        async function msgAction(action) {
+            document.getElementById('msgMenu').classList.remove('active');
+            if (!currentMsgData) return;
+            
+            if (action === 'reply') {
+                document.getElementById('replyToId').value = currentMsgData.id;
+                document.getElementById('replyText').innerText = '@' + currentMsgData.sender + ': ' + currentMsgData.content.substring(0, 50);
+                document.getElementById('replyIndicator').classList.add('active');
+                document.getElementById('messageInput').focus();
+            } else if (action === 'copy') {
+                navigator.clipboard.writeText(currentMsgData.content).then(() => toast('✅ تم النسخ'));
+            } else if (action === 'react') {
+                const picker = document.getElementById('reactionPicker');
+                picker.style.left = '50%';
+                picker.style.top = '50%';
+                picker.style.transform = 'translate(-50%, -50%)';
+                picker.classList.add('active');
+            } else if (action === 'delete') {
+                if (confirm('حذف هذه الرسالة؟')) {
+                    fetch('/api/message/delete/' + currentMsgData.id, {method: 'POST'})
+                        .then(r => r.json()).then(d => {
+                            if (d.success) { currentMsgEl.remove(); toast('🗑️ تم الحذف'); }
+                            else alert('فشل الحذف');
+                        });
+                }
+            } else if (action === 'edit') {
+                const n = prompt('تعديل الرسالة:', currentMsgData.content);
+                if (n && n.trim() && n.trim() !== currentMsgData.content) {
+                    fetch('/api/message/edit/' + currentMsgData.id, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({content: n.trim()})
+                    }).then(r => r.json()).then(d => {
+                        if (d.success) {
+                            const body = currentMsgEl.querySelector('.message');
+                            const meta = body.querySelector('.msg-meta');
+                            body.innerHTML = '';
+                            body.appendChild(document.createTextNode(d.content));
+                            body.appendChild(meta);
+                            toast('✏️ تم التعديل');
+                        } else alert('فشل التعديل');
+                    });
+                }
+            } else if (action === 'forward') {
+                openForward();
+            } else if (action === 'pin') {
+                {% if group %}
+                fetch('/group/{{ group.id }}/pin/' + currentMsgData.id, {method: 'POST'})
+                    .then(() => location.reload());
+                {% endif %}
+            }
+        }
+
+        async function sendReaction(emoji) {
+            document.getElementById('reactionPicker').classList.remove('active');
+            if (!currentMsgData) return;
+            const res = await fetch('/api/message/react/' + currentMsgData.id, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({reaction: emoji})
+            });
+            const data = await res.json();
+            if (data.success) {
+                const body = currentMsgEl.querySelector('.message');
+                const meta = body.querySelector('.msg-meta');
+                let re = meta.querySelector('.msg-reaction');
+                if (data.reaction) {
+                    if (!re) { re = document.createElement('span'); re.className = 'msg-reaction'; meta.appendChild(re); }
+                    re.textContent = data.reaction;
+                } else if (re) { re.remove(); }
+            }
+        }
+
+        function scrollToBottom() {
+            const box = document.getElementById('chatBox');
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function scrollToMsg(id) {
+            const el = document.querySelector('[data-msg-id="' + id + '"]');
+            if (el) {
+                el.scrollIntoView({behavior: 'smooth', block: 'center'});
+                el.style.transition = 'background 0.5s';
+                el.style.background = 'rgba(255,204,0,0.3)';
+                setTimeout(() => el.style.background = '', 1500);
+            }
+        }
+
+        const cb = document.getElementById('chatBox');
+        cb.addEventListener('scroll', () => {
+            const sb = document.getElementById('scrollBtn');
+            const near = cb.scrollHeight - cb.scrollTop - cb.clientHeight < 100;
+            sb.classList.toggle('visible', !near);
+        });
+
+        function openForward() {
+            document.getElementById('forwardModal').classList.add('active');
+            const list = document.getElementById('forwardList');
+            list.innerHTML = 'جاري التحميل...';
+            fetch('/api/get_forward_targets').then(r => r.json()).then(t => {
+                list.innerHTML = '';
+                if (t.length === 0) { list.innerHTML = '<p style="color:#888;">لا يوجد مستلمون</p>'; return; }
+                t.forEach(tg => {
+                    const b = document.createElement('button');
+                    b.style.cssText = 'display:block;width:100%;padding:12px;margin-bottom:6px;background:#333;color:white;border:none;border-radius:8px;text-align:right;cursor:pointer;font-family:inherit;';
+                    b.innerHTML = '<i class="fa-solid fa-users"></i> ' + tg.name;
+                    b.onclick = () => doForward(tg.type, tg.id);
+                    list.appendChild(b);
+                });
+            });
+        }
+
+        function closeForward() {
+            document.getElementById('forwardModal').classList.remove('active');
+        }
+
+        async function doForward(type, id) {
+            const res = await fetch('/api/message/forward/' + currentMsgData.id, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({target_type: type, target_id: id})
+            });
+            const d = await res.json();
+            if (d.success) { toast('➡️ تم التحويل'); closeForward(); }
+            else alert('فشل: ' + (d.error || ''));
+        }
+
+        function sendImage(input) {
+            if (!input.files || !input.files[0]) return;
+            const fd = new FormData();
+            fd.append('image', input.files[0]);
+            {% if group %}fd.append('group_id', '{{ group.id }}');{% else %}fd.append('receiver_id', '{{ other_user.id }}');{% endif %}
+            toast('📤 جاري الرفع...');
+            fetch('/api/chat/image', {method: 'POST', body: fd})
+                .then(r => r.json()).then(d => {
+                    if (d.success) location.reload();
+                    else alert('فشل الرفع: ' + (d.error || ''));
+                });
+            input.value = '';
+        }
+
     </script>
 </body>
 </html>

@@ -706,8 +706,17 @@ def get_followed_users():
 @login_required
 def api_delete_message(msg_id):
     msg = Message.query.get_or_404(msg_id)
-    if msg.sender_id == current_user.id: db.session.delete(msg); db.session.commit(); return jsonify({'success': True})
-    return jsonify({'success': False}), 403
+    can_delete = msg.sender_id == current_user.id
+    if not can_delete and msg.group_id:
+        group = ChatGroup.query.get(msg.group_id)
+        if group and current_user in group.admins:
+            can_delete = True
+    if not can_delete:
+        return jsonify({'success': False}), 403
+    Message.query.filter_by(reply_to_id=msg.id).update({'reply_to_id': None})
+    db.session.delete(msg)
+    db.session.commit()
+    return jsonify({'success': True})
 
 @app.route('/api/message/react/<int:msg_id>', methods=['POST'])
 @login_required
@@ -964,6 +973,70 @@ def generate_fake_data():
 
 with app.app_context():
     db.create_all()
+
+@app.route('/api/message/edit/<int:msg_id>', methods=['POST'])
+@login_required
+def api_edit_message(msg_id):
+    msg = Message.query.get_or_404(msg_id)
+    if msg.sender_id != current_user.id or msg.message_type != 'text':
+        return jsonify({'success': False}), 403
+    new_content = (request.get_json() or {}).get('content', '').strip()
+    if not new_content:
+        return jsonify({'success': False}), 400
+    msg.content = new_content
+    db.session.commit()
+    return jsonify({'success': True, 'content': new_content})
+
+@app.route('/api/message/forward/<int:msg_id>', methods=['POST'])
+@login_required
+def api_forward_message(msg_id):
+    original = Message.query.get_or_404(msg_id)
+    data = request.get_json() or {}
+    target_type = data.get('target_type')
+    target_id = data.get('target_id')
+    new_msg = Message(sender_id=current_user.id, content=original.content, message_type=original.message_type)
+    if target_type == 'group':
+        group = ChatGroup.query.get(target_id)
+        if not group or current_user not in group.members:
+            return jsonify({'success': False, 'error': 'غير مصرح'}), 403
+        new_msg.group_id = target_id
+    elif target_type == 'user':
+        new_msg.receiver_id = target_id
+    else:
+        return jsonify({'success': False}), 400
+    db.session.add(new_msg)
+    db.session.commit()
+    return jsonify({'success': True})
+
+@app.route('/api/get_forward_targets')
+@login_required
+def api_get_forward_targets():
+    targets = [{'type': 'group', 'id': g.id, 'name': g.name} for g in current_user.chat_groups]
+    return jsonify(targets)
+
+@app.route('/api/chat/image', methods=['POST'])
+@login_required
+def api_chat_image():
+    file = request.files.get('image')
+    group_id = request.form.get('group_id')
+    receiver_id = request.form.get('receiver_id')
+    if not file:
+        return jsonify({'success': False}), 400
+    try:
+        res = cloudinary.uploader.upload(file, resource_type="image")
+        url = res.get('secure_url')
+        msg = Message(sender_id=current_user.id, content=url, message_type='image')
+        if group_id:
+            msg.group_id = int(group_id)
+        elif receiver_id:
+            msg.receiver_id = int(receiver_id)
+        else:
+            return jsonify({'success': False}), 400
+        db.session.add(msg)
+        db.session.commit()
+        return jsonify({'success': True, 'url': url})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
