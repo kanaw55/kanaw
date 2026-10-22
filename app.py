@@ -1984,3 +1984,82 @@ def recover_videos():
     html += '</div></body></html>'
     return html
 
+
+# ============================================================
+# سحب الفيديو عبر السيرفر (مع تجاوز الحظر)
+# ============================================================
+@app.route('/admin/fetch_media_advanced', methods=['GET', 'POST'])
+@login_required
+def fetch_media_advanced():
+    result_msg = ""
+    direct_link = ""
+    if request.method == 'POST':
+        url = request.form.get('video_url', '').strip()
+        caption = request.form.get('caption', 'فيديو جديد').strip()
+        
+        if url:
+            try:
+                temp_dir = tempfile.mkdtemp()
+                # إعدادات متقدمة لتجاوز الحظر
+                ydl_opts = {
+                    'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+                    'outtmpl': os.path.join(temp_dir, 'video.%(ext)s'),
+                    'quiet': True,
+                    'no_warnings': True,
+                    'nocheckcertificate': True,
+                    'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
+                    'http_headers': {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                        'Accept-Language': 'en-us,en;q=0.5',
+                    }
+                }
+                
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(url, download=True)
+                    filepath = ydl.prepare_filename(info)
+                
+                # الرفع إلى Cloudinary
+                res = cloudinary.uploader.upload(filepath, resource_type="video", folder="imported")
+                cloud_url = res['secure_url']
+                if '/video/upload/' in cloud_url:
+                    cloud_url = cloud_url.replace('/video/upload/', '/video/upload/q_auto,f_auto/')
+                
+                v = Video(filename=cloud_url, caption=caption, user_id=current_user.id, views=0, likes_count=0)
+                db.session.add(v)
+                db.session.commit()
+                
+                os.remove(filepath)
+                os.rmdir(temp_dir)
+                
+                result_msg = '<div style="color:#28a745; background:#1a3a1a; padding:15px; border-radius:8px;">✅ تم السحب والرفع بنجاح! <a href="/" style="color:#00f2fe;">اذهب للرئيسية</a></div>'
+            except Exception as e:
+                # إذا فشل التحميل، نحاول استخراج الرابط المباشر
+                try:
+                    with yt_dlp.YoutubeDL({'quiet': True, 'nocheckcertificate': True}) as ydl:
+                        info = ydl.extract_info(url, download=False)
+                        formats = info.get('formats', [])
+                        if formats:
+                            # نبحث عن أفضل جودة
+                            best = [f for f in formats if f.get('ext') == 'mp4']
+                            if best:
+                                direct_link = best[-1].get('url', '')
+                                result_msg = f'<div style="color:#ffc107; background:#3a2a1a; padding:15px; border-radius:8px;">⚠️ فشل التحميل المباشر (السيرفر محظور)، لكن استخرجنا رابطاً مباشراً:<br><br><a href="{direct_link}" target="_blank" style="color:#00f2fe; word-break:break-all;">اضغط هنا لتحميل الفيديو</a><br><br>حمله وارفعه عبر زر (+)</div>'
+                            else:
+                                result_msg = f'<div style="color:#dc3545; background:#3a1a1a; padding:15px; border-radius:8px;">❌ فشل السحب: {str(e)[:200]}</div>'
+                        else:
+                            result_msg = f'<div style="color:#dc3545; background:#3a1a1a; padding:15px; border-radius:8px;">❌ فشل السحب: {str(e)[:200]}</div>'
+                except:
+                    result_msg = f'<div style="color:#dc3545; background:#3a1a1a; padding:15px; border-radius:8px;">❌ فشل السحب: {str(e)[:200]}</div>'
+    
+    return f'''<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>سحب متقدم</title>
+    <style>body{{font-family:sans-serif;background:#111;color:#fff;padding:20px;max-width:600px;margin:0 auto}}input,button{{width:100%;padding:15px;margin:10px 0;border-radius:8px;border:none;box-sizing:border-box}}input[type=url],input[type=text]{{background:#222;color:#fff}}button{{background:#fe2c55;color:#fff;font-size:16px;font-weight:bold;cursor:pointer}}</style>
+    </head><body>
+    <h1>🪄 سحب متقدم (تجاوز الحظر)</h1>
+    {result_msg}
+    <form method="POST">
+        <input type="url" name="video_url" placeholder="https://www.youtube.com/shorts/..." required>
+        <input type="text" name="caption" placeholder="وصف الفيديو" value="فيديو مميز">
+        <button type="submit">⬇️ محاولة السحب</button>
+    </form>
+    </body></html>'''
